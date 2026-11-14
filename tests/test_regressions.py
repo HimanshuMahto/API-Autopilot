@@ -247,3 +247,37 @@ def test_blocked_and_repeated_scenarios_are_skipped_before_running(config, spec)
     assert [s.title for s in kept] == ["me"]
     assert sent == 0
     assert any("allow_deletes" in n for n in notes) and any("repeats" in n for n in notes)
+
+
+def test_springdoc_wildcard_responses_and_login_detection():
+    """springdoc labels responses */* and marks /auth/login protected via global security."""
+    from autopilot.spec import parse_spec
+
+    token = {"type": "object", "properties": {"token": {"type": "string"}, "userId": {"type": "string"}}}
+    creds = {"type": "object", "properties": {"username": {"type": "string"}, "password": {"type": "string"}}}
+    spec = parse_spec(
+        {
+            "openapi": "3.1.0",
+            "security": [{"bearerAuth": []}],
+            "components": {"securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}}},
+            "paths": {
+                "/auth/login": {"post": {
+                    "operationId": "login",
+                    "requestBody": {"content": {"application/json": {"schema": creds}}},
+                    "responses": {"200": {"description": "OK", "content": {"*/*": {"schema": token}}}},
+                }},
+                "/api/me": {"get": {"operationId": "me", "responses": {"200": {"description": "OK", "content": {"*/*": {"schema": token}}}}}},
+            },
+        }
+    )
+    assert spec.get("me").response_schema(200) == token  # was None: responses went unchecked
+    assert (spec.login.path, spec.login.token_path) == ("/auth/login", "body.token")
+    # Anonymous success on a login endpoint isn't "missing authentication"...
+    login_ok = Exchange(step_index=0, operation_id="login", identity="anonymous", method="POST",
+                        url="http://x/auth/login", request_body={"username": "a", "password": "b"},
+                        status=200, response_body={"token": "t", "userId": "1"})
+    assert check_exchange(spec, login_ok) == []
+    # ...but on a real protected endpoint it still is.
+    me_ok = Exchange(step_index=0, operation_id="me", identity="anonymous", method="GET",
+                     url="http://x/api/me", status=200, response_body={"token": "t", "userId": "1"})
+    assert [v.oracle for v in check_exchange(spec, me_ok)] == ["builtin.auth_required"]

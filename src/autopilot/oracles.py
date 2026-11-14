@@ -11,18 +11,31 @@ MVP oracles:
   spec.constraint             request broke a documented constraint, yet got 2xx
   builtin.auth_required       protected operation answered an anonymous caller
   builtin.auth_differential   one identity read/changed a resource another created
+  builtin.error_leak          a response exposes SQL, stack traces, internal class
+                              names or server file paths
 """
 
 from __future__ import annotations
 
 import copy
+import json
+import re
 from typing import Any
 
 from jsonschema import Draft4Validator, Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from .models import Exchange, ExpectationSource, Severity, Violation
-from .spec import ApiSpec, Operation
+from .spec import ApiSpec, Operation, is_binary
+
+
+# Endpoints that are public by nature. Specs with one global security requirement
+# mark them as protected too, so "answered an anonymous caller" isn't a finding here.
+_PUBLIC_BY_NATURE = re.compile(
+    r"/(login|log-in|signin|sign-in|signup|sign-up|register|token|refresh|forgot-password|"
+    r"reset-password|password-reset|verify|health|healthz|ping|status)/?$",
+    re.IGNORECASE,
+)
 
 
 def _to_json_schema(schema: dict[str, Any], openapi: str, mode: str) -> dict[str, Any]:
@@ -99,9 +112,33 @@ def _violation(
     )
 
 
+def _without_files(schema: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """The schema minus file fields (checked separately), and the required file fields."""
+    props = schema.get("properties") or {}
+    files = [name for name, prop in props.items() if is_binary(prop)]
+    if not files:
+        return schema, []
+    trimmed = dict(schema)
+    trimmed["properties"] = {k: v for k, v in props.items() if k not in files}
+    required = [r for r in schema.get("required", []) if r not in files]
+    if required:
+        trimmed["required"] = required
+    else:
+        trimmed.pop("required", None)
+    return trimmed, [r for r in schema.get("required", []) if r in files]
+
+
 def _request_constraint_errors(op: Operation, ex: Exchange, openapi: str) -> list[str]:
     """Return a stable description of each documented constraint the request broke."""
     problems: list[str] = []
+    if op.request_schema is not None and op.request_format == "multipart":
+        schema, required_files = _without_files(op.request_schema)
+        body = ex.request_body if isinstance(ex.request_body, dict) else {}
+        problems += [f"required:{name}" for name in required_files if body.get(name) is None]
+        fields = {k: v for k, v in body.items() if k in (schema.get("properties") or {}) or k not in required_files}
+        fields = {k: v for k, v in fields.items() if not (isinstance(v, str) and v.startswith("<file "))}
+        problems += [f"{err.validator}:{_key_path(err)}" for err in _errors(schema, fields, openapi, "request")]
+        return problems
     if op.request_schema is not None:
         if ex.request_body is None:
             if op.request_required:
@@ -110,6 +147,41 @@ def _request_constraint_errors(op: Operation, ex: Exchange, openapi: str) -> lis
             for err in _errors(op.request_schema, ex.request_body, openapi, "request"):
                 problems.append(f"{err.validator}:{_key_path(err)}")
     return problems
+
+
+# Internal details that should never reach a client. Each kind is checked separately
+# so a finding names what leaked, e.g. "sql" or "stack_trace".
+_LEAKS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("sql", re.compile(
+        r"\b(INSERT\s+INTO\s+\w+|SELECT\s+[\w*.,\s]+\s+FROM\s+\w+|UPDATE\s+\w+\s+SET\s|DELETE\s+FROM\s+\w+)"
+        r"|SQLSTATE|JDBC exception|syntax error at or near|psycopg2?\.|ORA-\d{5}|SQLITE_\w+|ER_\w+_ERROR",
+        re.IGNORECASE)),
+    ("stack_trace", re.compile(
+        r"\bat [\w$.]+\([\w$]+\.(java|kt|scala|groovy):\d+\)|Traceback \(most recent call last\)"
+        r"|File \"[^\"]+\.py\", line \d+|\bat [\w$.<>]+ \([^()\s]+\.(js|ts|mjs|cjs):\d+:\d+\)"
+        r"|\.cs:line \d+|goroutine \d+ \[")),
+    ("internal_class", re.compile(
+        r"\b(java|javax|jakarta|org\.springframework|org\.hibernate|com\.fasterxml|kotlin)\.[\w.$]+"
+        r"|\bpublic [\w.<>?,\s]+ [\w.]+\.\w+\(|\b[\w.]+\.(?:[A-Z]\w*)?(?:Exception|Error)\b(?=[:\s])")),
+    ("file_path", re.compile(r"(/Users/[\w.-]+/|/home/[\w.-]+/|[A-Z]:\\\\(?:Users|inetpub)\\\\|/var/www/[\w.-]+|/usr/src/app/)")),
+)
+_LEAK_SCAN_CHARS = 20_000
+
+
+def _leaks(body: Any) -> list[tuple[str, str]]:
+    """(kind, snippet) for each kind of internal detail found in a response body."""
+    if body is None:
+        return []
+    text = body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)
+    text = text[:_LEAK_SCAN_CHARS]
+    found = []
+    for kind, pattern in _LEAKS:
+        match = pattern.search(text)
+        if match:
+            start = max(0, match.start() - 30)
+            snippet = text[start:match.end() + 50].replace("\\n", " ").replace("\n", " ")
+            found.append((kind, snippet))
+    return found
 
 
 def check_exchange(spec: ApiSpec, ex: Exchange) -> list[Violation]:
@@ -129,6 +201,20 @@ def check_exchange(spec: ApiSpec, ex: Exchange) -> list[Violation]:
                 ex,
                 f"{op.method} {op.path} returned {status}.",
                 key=str(status),
+            )
+        )
+
+    leaks = _leaks(ex.response_body)
+    if leaks:
+        kinds = sorted({kind for kind, _ in leaks})
+        found.append(
+            _violation(
+                "builtin.error_leak",
+                ExpectationSource.BUILTIN,
+                Severity.MEDIUM,
+                ex,
+                f"Response {status} exposes internal details ({', '.join(kinds)}): …{leaks[0][1]}…",
+                key="|".join(kinds),
             )
         )
 
@@ -178,7 +264,7 @@ def check_exchange(spec: ApiSpec, ex: Exchange) -> list[Violation]:
                 )
             )
 
-        if op.requires_auth and ex.identity == "anonymous":
+        if op.requires_auth and ex.identity == "anonymous" and not _PUBLIC_BY_NATURE.search(op.path):
             found.append(
                 _violation(
                     "builtin.auth_required",

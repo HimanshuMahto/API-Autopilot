@@ -69,12 +69,13 @@ spec ──► planner (Groq, Claude or heuristic) ──► proposed scenarios
 | `spec.constraint` | request broke a documented constraint but got 2xx |
 | `builtin.auth_required` | protected operation answered an anonymous caller |
 | `builtin.auth_differential` | one identity reached a resource another identity created |
+| `builtin.error_leak` | a response exposes SQL, stack traces, internal class names or server file paths |
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `autopilot init [--spec FILE_OR_URL] [--base-url URL]` | write `autopilot.yaml`: for the demo, or for your API with `--spec` |
+| `autopilot init [--url URL] [--start CMD] [--project DIR] [--spec FILE_OR_URL] [--base-url URL]` | write `autopilot.yaml`: for the demo, or for your API (see below) |
 | `autopilot inspect` | show operations, auth and what the policy allows |
 | `autopilot run [--planner groq\|claude\|heuristic] [--max-requests N]` | explore, confirm, save scenarios, write a report |
 | `autopilot replay [--include-flaky]` | re-run saved scenarios; exit 1 if a defect remains, 2 if one couldn't run |
@@ -99,35 +100,64 @@ spec, in JSON or YAML.
 ### 2. Set it up
 
 Run Autopilot from a folder of its own, so each API keeps its own config,
-reports and saved bugs:
+reports and saved bugs. Then point `init` at your API in whichever way fits:
 
 ```bash
 # Lets `autopilot` run from any folder
 alias autopilot='uv run --project ~/Documents/Github-Personal/api-autopilot autopilot'
-
 mkdir ~/autopilot-myapi && cd ~/autopilot-myapi
+
+# a) Your app is running: Autopilot finds its spec
+autopilot init --url http://localhost:8000
+
+# b) Let Autopilot start the app too (and start/stop it on every run)
+autopilot init --url http://localhost:8000 --start "uvicorn app.main:app --port 8000"
+
+# c) Point it at the project folder: it finds or exports the spec
+autopilot init --project ~/code/my-api
+
+# d) You know where the spec is: a file or a URL
 autopilot init --spec https://staging.yourapp.com/openapi.json
 ```
 
-`init --spec` accepts a URL or a file path. It:
+How each option finds the spec:
 
-- downloads the spec to `openapi.json` (or `.yaml`), so every run uses the same version;
-- takes the base URL from the spec's servers (Swagger: `schemes`, `host`,
-  `basePath`). If the spec doesn't name a full URL, pass `--base-url https://...`;
-- picks the auth header from the spec's security scheme (bearer token, API-key
-  header or basic auth) and sets up two identities, `user_a` and `user_b`;
+| Option | How it gets the spec |
+|---|---|
+| `--url` | Tries the addresses frameworks serve specs on: `/openapi.json` (FastAPI), `/v3/api-docs` (Spring), `/api-json` (NestJS), `/swagger.json`, `/swagger/v1/swagger.json` (ASP.NET), `/api/schema/` (Django) and more. |
+| `--project` | 1. a spec file in the repo (skipping `node_modules`, `.venv` and so on); 2. exports one from code for **FastAPI** and **Django REST Framework** with drf-spectacular, without starting a server (this imports your code, using the project's own `.venv` if it has one); 3. for Spring Boot, NestJS, ASP.NET, Express and Flask, which only serve a spec while running, it tells you the `--url` and `--start` to use. |
+| `--spec` | Exactly the file or URL you give it. |
+
+Whichever you use, `init`:
+
+- saves a copy of a downloaded or exported spec as `openapi.json` (or `.yaml`),
+  so every run uses the same version;
+- uses `--url` (or `--base-url`, or the spec's server) as the address to test;
+- picks the auth header from the spec (bearer token, API-key header or basic auth)
+  and sets up two identities, `user_a` and `user_b`;
+- if the spec has a login endpoint (an OAuth2 password flow, or a public
+  `POST .../login` taking a username and password and returning a token), sets
+  both identities up to **log in at the start of every run**, so there are no
+  tokens to copy or refresh;
 - starts **read-only** (`allow_writes: false`);
 - lists anything it can't test yet, such as form uploads.
 
+With `--start`, runs start the app (unless it's already running), wait until it
+answers, and stop it afterwards. Its output goes to `.autopilot/app.log`.
+
 ### 3. Add your keys
 
-Put the keys in a `.env` file next to `autopilot.yaml`. Don't put them in the
-config, and don't paste them into chats or tickets.
+Put secrets in a `.env` file next to `autopilot.yaml`. Don't put them in the
+config, and don't paste them into chats or tickets. `init` prints exactly
+which ones it needs, for example:
 
 ```bash
 GROQ_API_KEY=...
-USER_A_TOKEN=...
-USER_B_TOKEN=...
+USER_A_USERNAME=...      # when the identities log in
+USER_A_PASSWORD=...
+USER_B_USERNAME=...
+USER_B_PASSWORD=...
+# or USER_A_TOKEN / USER_B_TOKEN when they use fixed tokens
 ```
 
 `.env` is git-ignored. Variables already set in your shell take priority.
@@ -149,8 +179,12 @@ re-check found bugs after a fix, with no AI involved.
 - `spec`: file path (relative to `autopilot.yaml`) or http(s) URL.
 - `target.base_url` / `allowed_hosts`: requests to any other host are refused.
 - `target.allow_writes` / `allow_deletes`: off unless you turn them on.
+- `target.start`: `command` to start the app, plus optional `cwd`, `shell`,
+  `ready_url`, `timeout_s` and `env`.
 - `identities`: `header`, `prefix` (e.g. `"Bearer "`, or `""` for a raw API key)
-  and `value_env`, the environment variable that holds the token.
+  and either `value_env` (a fixed token) or `login`: `method`, `path`,
+  `format` (`json` or `form`), `body` (values can use `${ENV_VAR}`) and
+  `token_path` (where the token is in the response, e.g. `body.access_token`).
 - `budgets`: request, follow-up round and LLM-call limits.
 - `llm`: `provider` (`groq`, `claude` or `heuristic`), `model`, `effort` and
   `api_key_env`.
@@ -187,7 +221,8 @@ Claude adapters against fake clients, so they need no network or API key.
   errors, the first (by path) is the one tracked.
 - No invariant DSL, exports (pytest/Hurl), CI action or MCP server yet (Phase 2–3).
 - Specs: OpenAPI 3.x and Swagger 2.0, with `$ref`s inside one file only.
-- JSON request bodies only; form uploads are listed by `init`/`inspect` and skipped.
-- Fixed tokens: no login flow, so refresh expired tokens by hand. API keys must
-  go in a header, not the query string.
+- Request bodies: JSON, multipart (file uploads, with a small sample file) and
+  form. Other types are listed by `init`/`inspect` and skipped.
+- Login happens once per run; tokens that expire mid-run are not refreshed.
+  API keys must go in a header, not the query string.
 - No clean-up: data created on the target stays there.

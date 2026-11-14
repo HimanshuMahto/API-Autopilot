@@ -21,6 +21,7 @@ ORACLE_IDS = Literal[
     "spec.constraint",
     "builtin.auth_required",
     "builtin.auth_differential",
+    "builtin.error_leak",
 ]
 
 

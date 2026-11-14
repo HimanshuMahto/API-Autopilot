@@ -11,8 +11,12 @@ places so API Autopilot has something real to find:
       returning 409.                                    -> builtin.server_error
   D4  Product 3 returns its price as a string.          -> builtin.schema_conformance
 
-Everything else (listing own orders, deleting, /me, auth on every protected
-route) is implemented correctly and acts as the known-good control.
+Everything else (listing own orders, deleting, /me, logging in, auth on every
+protected route) is implemented correctly and acts as the known-good control.
+
+Test users: alice / alice-password and bob / bob-password. POST /auth/login
+returns their token; the static tokens alice-token and bob-token work too.
+The spec is served at /openapi.yaml, so `autopilot init --url` can find it.
 
 Run it with:  uv run uvicorn demo.shop_api:app --port 8765
 """
@@ -20,11 +24,14 @@ Run it with:  uv run uvicorn demo.shop_api:app --port 8765
 from __future__ import annotations
 
 import itertools
+from pathlib import Path
 
 from fastapi import FastAPI, Header, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 
 TOKENS = {"alice-token": "alice", "bob-token": "bob"}
+PASSWORDS = {"alice": "alice-password", "bob": "bob-password"}
+SPEC_FILE = Path(__file__).with_name("openapi.yaml")
 
 app = FastAPI(title="Demo Shop API", openapi_url=None, docs_url=None, redoc_url=None)
 
@@ -59,6 +66,24 @@ def _user(authorization: str | None) -> str | None:
     if not authorization or not authorization.startswith("Bearer "):
         return None
     return TOKENS.get(authorization.removeprefix("Bearer ").strip())
+
+
+@app.get("/openapi.yaml", include_in_schema=False)
+def spec_file():
+    return PlainTextResponse(SPEC_FILE.read_text(), media_type="application/yaml")
+
+
+@app.post("/auth/login")
+async def login(request: Request):
+    try:
+        body = await request.json()
+    except ValueError:
+        return _error(400, "Body must be JSON")
+    if not isinstance(body, dict) or not isinstance(body.get("username"), str) or not isinstance(body.get("password"), str):
+        return _error(400, "username and password are required")
+    if PASSWORDS.get(body["username"]) != body["password"]:
+        return _error(401, "Wrong username or password")
+    return {"access_token": f"{body['username']}-token", "token_type": "bearer"}
 
 
 @app.get("/me")

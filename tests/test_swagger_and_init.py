@@ -109,12 +109,13 @@ def test_swagger_auth_and_security_overrides():
     assert not spec.get("listPets").requires_auth  # `security: []` turns auth off
 
 
-def test_swagger_form_data_is_reported_not_sent():
+def test_swagger_form_data_becomes_a_multipart_body():
     spec = parse_spec(SWAGGER)
     upload = spec.get("uploadPhoto")
-    assert upload.request_schema is None
+    assert upload.request_format == "multipart"
+    assert upload.request_schema == {"type": "object", "properties": {"file": {"type": "string", "format": "binary"}}}
     assert upload.path_param_names == ["petId"]
-    assert any("form data" in n and "uploadPhoto" not in n and "/pets/{petId}/photo" in n for n in spec.notes)
+    assert spec.notes == []  # nothing left that can't be sent
 
 
 def _exchange(op, **kw):
@@ -146,7 +147,7 @@ def test_openapi3_auth_hint_and_non_json_note():
             "paths": {
                 "/upload": {
                     "post": {
-                        "requestBody": {"content": {"multipart/form-data": {"schema": {"type": "object"}}}},
+                        "requestBody": {"content": {"application/octet-stream": {"schema": {"type": "string"}}}},
                         "responses": {"200": {"description": "ok"}},
                     }
                 }
@@ -154,7 +155,7 @@ def test_openapi3_auth_hint_and_non_json_note():
         }
     )
     assert (spec.auth.header, spec.auth.prefix) == ("Authorization", "Bearer ")
-    assert any("non-JSON" in n for n in spec.notes)
+    assert any("can't send yet" in n for n in spec.notes)
 
 
 def test_query_api_key_is_flagged():
@@ -211,7 +212,7 @@ def test_init_from_a_swagger_file(tmp_path, monkeypatch):
     Path("swagger.yaml").write_text(yaml.safe_dump(SWAGGER))
     result = runner.invoke(app, ["init", "--spec", "swagger.yaml"])
     assert result.exit_code == 0, result.output
-    assert "Swagger 2.0" in result.output and "form data" in result.output
+    assert "Swagger 2.0" in result.output
 
     config = load_config("autopilot.yaml")  # the generated file is valid config
     assert config.target.base_url == "https://staging.pets.example.com/v1"

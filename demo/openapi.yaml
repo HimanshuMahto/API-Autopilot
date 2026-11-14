@@ -48,12 +48,49 @@ components:
         total: {type: number, minimum: 0}
         status: {type: string, enum: [placed, cancelled]}
         owner: {type: string}
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: {type: string}
+        password: {type: string}
+    Token:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token: {type: string}
+        token_type: {type: string}
     User:
       type: object
       required: [username]
       properties:
         username: {type: string}
 paths:
+  /auth/login:
+    post:
+      operationId: login
+      summary: Exchange a username and password for a bearer token. Public.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200':
+          description: 'The token, sent as the header "Authorization: Bearer <token>".'
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Token'}
+        '400':
+          description: Missing fields.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '401':
+          description: Wrong username or password.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
   /me:
     get:
       operationId: getMe

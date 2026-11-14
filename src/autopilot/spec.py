@@ -38,6 +38,7 @@ class Operation:
     request_required: bool
     responses: dict[str, dict[str, Any] | None]  # status -> JSON schema (None if no body)
     requires_auth: bool
+    request_format: str | None = None  # "json", "multipart", "form" or None (no body we can send)
 
     @property
     def is_write(self) -> bool:
@@ -69,6 +70,19 @@ class AuthHint:
 
 
 @dataclass
+class LoginHint:
+    """A login request found in the spec, used by `init` to pre-fill identities."""
+
+    method: str
+    path: str
+    format: str  # "json" or "form"
+    username_field: str
+    password_field: str
+    token_path: str
+    description: str
+
+
+@dataclass
 class ApiSpec:
     title: str
     version: str
@@ -77,6 +91,7 @@ class ApiSpec:
     openapi: str = "3.0.3"  # "2.0" for Swagger documents
     operations: dict[str, Operation] = field(default_factory=dict)
     auth: AuthHint | None = None
+    login: LoginHint | None = None
     # Parts of the spec Autopilot can't exercise yet, shown by `autopilot inspect`.
     notes: list[str] = field(default_factory=list)
 
@@ -115,12 +130,42 @@ def _resolve_refs(node: Any, root: dict[str, Any], seen: tuple[str, ...] = ()) -
 
 
 def _json_schema(content: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The schema of the JSON content, or of a wildcard type if there's no JSON one.
+
+    springdoc (Spring Boot) labels most responses "*/*" rather than
+    "application/json", so the wildcard fallback matters for every Spring app.
+    """
     if not content:
         return None
     for media_type, body in content.items():
         if "json" in media_type:
             return (body or {}).get("schema", {})
+    for media_type in ("*/*", "application/*"):
+        if media_type in content:
+            return (content[media_type] or {}).get("schema", {})
     return None
+
+
+def _request_body(content: dict[str, Any] | None) -> tuple[dict[str, Any] | None, str | None]:
+    """(schema, format) for a request body we know how to send: JSON, multipart or form."""
+    if not content:
+        return None, None
+    for media_type, body in content.items():
+        if "json" in media_type:
+            return (body or {}).get("schema", {}), "json"
+    if "multipart/form-data" in content:
+        return (content["multipart/form-data"] or {}).get("schema", {}), "multipart"
+    if "application/x-www-form-urlencoded" in content:
+        return (content["application/x-www-form-urlencoded"] or {}).get("schema", {}), "form"
+    return None, None
+
+
+def is_binary(schema: dict[str, Any] | None) -> bool:
+    """A file field in a multipart body."""
+    schema = schema or {}
+    return schema.get("type") == "file" or (
+        schema.get("type") == "string" and schema.get("format") in ("binary", "base64")
+    )
 
 
 def _fallback_operation_id(method: str, path: str) -> str:
@@ -151,6 +196,56 @@ def _auth_hint(schemes: dict[str, Any], security: list[dict[str, Any]]) -> tuple
     return AuthHint("Authorization", "Bearer ", "bearer token"), []
 
 
+_LOGIN_PATH = re.compile(r"/(login|log-in|signin|sign-in|sessions?|token|authenticate)/?$", re.IGNORECASE)
+_USER_FIELDS = ("username", "email", "login", "user", "user_name", "userName")
+_PASSWORD_FIELDS = ("password", "passwd", "pass")
+_TOKEN_FIELDS = ("access_token", "accessToken", "token", "jwt", "id_token", "idToken", "auth_token", "authToken")
+
+
+def _token_path(schema: dict[str, Any] | None) -> str | None:
+    props = (schema or {}).get("properties") or {}
+    for name in _TOKEN_FIELDS:
+        if name in props:
+            return f"body.{name}"
+    for wrapper in ("data", "result"):  # {"data": {"token": ...}}
+        inner = (props.get(wrapper) or {}).get("properties") or {}
+        for name in _TOKEN_FIELDS:
+            if name in inner:
+                return f"body.{wrapper}.{name}"
+    return None
+
+
+def _detect_login(spec: ApiSpec, schemes: dict[str, Any]) -> LoginHint | None:
+    # 1. OAuth2 "password" flow: a form post of username and password to tokenUrl.
+    for scheme in schemes.values():
+        scheme = scheme or {}
+        if str(scheme.get("type", "")).lower() != "oauth2":
+            continue
+        token_url = ((scheme.get("flows") or {}).get("password") or {}).get("tokenUrl")
+        if not token_url and scheme.get("flow") == "password":  # Swagger 2.0
+            token_url = scheme.get("tokenUrl")
+        if token_url:
+            return LoginHint("POST", token_url, "form", "username", "password", "body.access_token",
+                             f"OAuth2 password flow at {token_url}")
+    # 2. A JSON login endpoint that takes a username (or email) and a password. Specs
+    # often mark it as protected by mistake (a global security requirement applies to
+    # every operation), but logging in can't require being logged in, so that's ignored.
+    for op in spec.operations.values():
+        if op.method != "POST" or not _LOGIN_PATH.search(op.path):
+            continue
+        props = (op.request_schema or {}).get("properties") or {}
+        user = next((f for f in _USER_FIELDS if f in props), None)
+        password = next((f for f in _PASSWORD_FIELDS if f in props), None)
+        if not (user and password):
+            continue
+        success = next((s for code, s in op.responses.items() if code.startswith("2")), None)
+        token = _token_path(success)
+        note = "" if token else " (token field not documented; check token_path)"
+        return LoginHint("POST", op.path, "json", user, password, token or "body.access_token",
+                         f"{op.operation_id} ({op.method} {op.path}){note}")
+    return None
+
+
 def _add_operation(
     spec: ApiSpec,
     path: str,
@@ -161,6 +256,7 @@ def _add_operation(
     request_required: bool,
     responses: dict[str, dict[str, Any] | None],
     security: list[dict[str, Any]],
+    request_format: str | None = None,
 ) -> None:
     op_id = raw.get("operationId") or _fallback_operation_id(method, path)
     if op_id in spec.operations:
@@ -176,6 +272,7 @@ def _add_operation(
         responses=responses,
         # An empty requirement object ({}) means anonymous access is allowed.
         requires_auth=bool(security) and all(bool(req) for req in security),
+        request_format=request_format if request_schema is not None else None,
     )
 
 
@@ -216,7 +313,7 @@ def _parse_openapi3(doc: dict[str, Any], version: str) -> ApiSpec:
                 for p in _merge_params(item.get("parameters", []), raw.get("parameters", []))
             ]
             body = raw.get("requestBody") or {}
-            request_schema = _json_schema(body.get("content"))
+            request_schema, request_format = _request_body(body.get("content"))
             if body.get("content") and request_schema is None:
                 non_json.append(f"{method.upper()} {path}")
             responses = {
@@ -226,11 +323,13 @@ def _parse_openapi3(doc: dict[str, Any], version: str) -> ApiSpec:
             _add_operation(
                 spec, path, method, raw, params, request_schema,
                 bool(body.get("required", False)), responses, raw.get("security", global_security),
+                request_format,
             )
+    spec.login = _detect_login(spec, (doc.get("components") or {}).get("securitySchemes") or {})
     if non_json:
         spec.notes.append(
-            f"{len(non_json)} operation(s) take non-JSON bodies (e.g. form uploads), which "
-            f"Autopilot can't send yet: {', '.join(non_json[:5])}{' ...' if len(non_json) > 5 else ''}"
+            f"{len(non_json)} operation(s) take bodies Autopilot can't send yet (only JSON, "
+            f"multipart and form bodies are supported): {', '.join(non_json[:5])}{' ...' if len(non_json) > 5 else ''}"
         )
     return spec
 
@@ -274,7 +373,6 @@ def _parse_swagger2(doc: dict[str, Any]) -> ApiSpec:
     )
     spec.auth, notes = _auth_hint(doc.get("securityDefinitions") or {}, global_security)
     spec.notes += notes
-    form_ops = []
     for path, item in (doc.get("paths") or {}).items():
         item = item or {}
         for method in HTTP_METHODS:
@@ -282,14 +380,21 @@ def _parse_swagger2(doc: dict[str, Any]) -> ApiSpec:
             if raw is None:
                 continue
             params: list[Parameter] = []
-            request_schema, request_required = None, False
+            request_schema, request_required, request_format = None, False, None
+            form_props: dict[str, Any] = {}
+            form_required: list[str] = []
             for p in _merge_params(item.get("parameters", []), raw.get("parameters", [])):
                 location = p["in"]
                 if location == "body":
                     request_schema, request_required = p.get("schema", {}), bool(p.get("required", False))
+                    request_format = "json"
                 elif location == "formData":
-                    if f"{method.upper()} {path}" not in form_ops:
-                        form_ops.append(f"{method.upper()} {path}")
+                    prop = {k: p[k] for k in _SWAGGER_PARAM_KEYS if k in p}
+                    if p.get("type") == "file":
+                        prop = {"type": "string", "format": "binary"}
+                    form_props[p["name"]] = prop
+                    if p.get("required"):
+                        form_required.append(p["name"])
                 else:
                     params.append(
                         Parameter(
@@ -299,6 +404,14 @@ def _parse_swagger2(doc: dict[str, Any]) -> ApiSpec:
                             schema={k: p[k] for k in _SWAGGER_PARAM_KEYS if k in p},
                         )
                     )
+            if form_props and request_schema is None:
+                request_schema = {"type": "object", "properties": form_props}
+                if form_required:
+                    request_schema["required"] = form_required
+                has_file = any(is_binary(v) for v in form_props.values())
+                consumes = raw.get("consumes") or doc.get("consumes") or []
+                request_format = "multipart" if has_file or "multipart/form-data" in consumes else "form"
+                request_required = bool(form_required)
             responses = {
                 str(code): (resp or {}).get("schema")
                 for code, resp in (raw.get("responses") or {}).items()
@@ -306,12 +419,9 @@ def _parse_swagger2(doc: dict[str, Any]) -> ApiSpec:
             _add_operation(
                 spec, path, method, raw, params, request_schema,
                 request_required, responses, raw.get("security", global_security),
+                request_format,
             )
-    if form_ops:
-        spec.notes.append(
-            f"{len(form_ops)} operation(s) take form data, which Autopilot can't send yet: "
-            f"{', '.join(form_ops[:5])}{' ...' if len(form_ops) > 5 else ''}"
-        )
+    spec.login = _detect_login(spec, doc.get("securityDefinitions") or {})
     return spec
 
 

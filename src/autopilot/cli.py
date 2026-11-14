@@ -10,6 +10,7 @@ from typing import Annotated
 import httpx
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from .config import CONFIG_FILE, DEMO_CONFIG, Config, ConfigError, load_config
@@ -26,95 +27,229 @@ err = Console(stderr=True)
 ConfigOpt = Annotated[Path, typer.Option("--config", "-c", help="Path to autopilot.yaml.")]
 
 
-def _load(config_path: Path) -> tuple[Config, ApiSpec]:
+def _fail(exc: Exception, code: int = 2) -> typer.Exit:
+    """Print an error (escaped: app logs can contain [brackets]) and return Exit."""
+    err.print("[red]Error:[/red]", escape(str(exc)))
+    return typer.Exit(code)
+
+
+def _load_config(config_path: Path) -> Config:
     try:
-        config = load_config(config_path)
-        return config, load_spec(config.spec_source)
-    except (ConfigError, SpecError) as exc:
-        err.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(2) from None
+        return load_config(config_path)
+    except ConfigError as exc:
+        raise _fail(exc) from None
+
+
+def _load_spec(config: Config) -> ApiSpec:
+    try:
+        return load_spec(config.spec_source)
+    except SpecError as exc:
+        raise _fail(exc) from None
+
+
+def _load(config_path: Path) -> tuple[Config, ApiSpec]:
+    config = _load_config(config_path)
+    return config, _load_spec(config)
+
+
+def _say(msg: str) -> None:
+    console.print(msg, markup=False, highlight=False)
+
+
+def _nice_path(target: Path) -> str:
+    """A path relative to here, unless that means climbing far up; then absolute."""
+    import os
+
+    rel = os.path.relpath(Path(target).resolve(), Path.cwd())
+    return str(Path(target).resolve()) if rel.startswith(os.pardir + os.sep + os.pardir + os.sep) else rel
+
+
+def _save_spec_copy(text: str, force: bool) -> str:
+    """Save a downloaded or exported spec next to the config, so runs use a fixed version."""
+    local = Path("openapi.json" if text.lstrip().startswith("{") else "openapi.yaml")
+    if local.exists() and not force:
+        raise _fail(f"{local} already exists. Use --force to overwrite it.", 1)
+    local.write_text(text)
+    return str(local)
 
 
 @app.command()
 def init(
     spec: Annotated[
         str | None,
-        typer.Option(help="Your API's OpenAPI 3.x or Swagger 2.0 spec: a file path or URL. Omit for the demo."),
+        typer.Option(help="Your API's OpenAPI 3.x or Swagger 2.0 spec: a file path or URL."),
+    ] = None,
+    url: Annotated[
+        str | None,
+        typer.Option(help="Where your running app is, e.g. http://localhost:8000. Its spec is found automatically."),
+    ] = None,
+    project: Annotated[
+        Path | None,
+        typer.Option(help="Your project folder. Finds a spec file in it, or exports one (FastAPI, Django REST)."),
+    ] = None,
+    start: Annotated[
+        str | None,
+        typer.Option(help="Command that starts your app. Saved in the config so runs start and stop it."),
     ] = None,
     base_url: Annotated[
-        str | None, typer.Option(help="Where to send requests. Defaults to the server listed in the spec.")
+        str | None, typer.Option(help="Where to send requests, if not --url or the spec's server.")
     ] = None,
     force: Annotated[bool, typer.Option(help="Overwrite existing files.")] = False,
 ) -> None:
-    """Create autopilot.yaml: for the bundled demo, or for your own API with --spec."""
+    """Create autopilot.yaml: for the demo, or for your API with --spec, --url or --project."""
+    import os
     from urllib.parse import urljoin
 
-    from .config import real_api_config
+    from .app_runner import AppStartError, RunningApp
+    from .config import StartConfig, real_api_config
+    from .discover import discover_spec
     from .spec import fetch_spec_text, is_url, parse_spec_text
 
     path = Path(CONFIG_FILE)
     if path.exists() and not force:
-        err.print(f"{path} already exists. Use --force to overwrite it.")
-        raise typer.Exit(1)
-    if spec is None:
+        raise _fail(f"{path} already exists. Use --force to overwrite it.", 1)
+    if spec and url:
+        raise _fail("Use either --spec or --url, not both.")
+    if spec is None and url is None and project is None:
+        if start:
+            raise _fail("--start needs --url or --project, so Autopilot knows where the app will answer.")
         path.write_text(DEMO_CONFIG)
-        console.print(f"Wrote {path} for the demo API. Use `autopilot init --spec <file-or-url>` for your own API.")
+        console.print(
+            f"Wrote {path} for the demo API. For your own API use --spec <file-or-url>, "
+            "--url <running app> or --project <folder>."
+        )
         return
+    if url is not None and not is_url(url):
+        raise _fail(f"--url must start with http:// or https:// (got {url!r})")
+
+    start_cwd = "."
+    if project is not None:
+        if not project.is_dir():
+            raise _fail(f"Project folder not found: {project}")
+        start_cwd = _nice_path(project)
+    parsed = None
+    spec_ref = ""
+    source = ""  # where the spec came from, for messages
+    assumed_base = None  # a framework's usual local address, used if nothing better is known
 
     try:
-        if is_url(spec):
-            text = fetch_spec_text(spec)
-            parsed = parse_spec_text(text, spec)
-            # Save a copy next to the config, so runs use a fixed version of the spec.
-            local = Path("openapi.json" if text.lstrip().startswith("{") else "openapi.yaml")
-            if local.exists() and not force:
-                err.print(f"{local} already exists. Use --force to overwrite it.")
-                raise typer.Exit(1)
-            local.write_text(text)
-            console.print(f"Downloaded the spec to {local}.")
-            spec_ref = str(local)
-        else:
-            if not Path(spec).is_file():
-                err.print(f"[red]Error:[/red] spec file not found: {spec}", markup=True)
-                raise typer.Exit(2)
-            parsed = parse_spec_text(Path(spec).read_text(), spec)
-            spec_ref = spec
-    except SpecError as exc:
-        err.print(f"[red]Error:[/red] {exc}", markup=True)
-        raise typer.Exit(2) from None
+        if spec is not None:
+            if is_url(spec):
+                text = fetch_spec_text(spec)
+                parsed = parse_spec_text(text, spec)
+                spec_ref = _save_spec_copy(text, force)
+                source = f"downloaded from {spec} to {spec_ref}"
+            else:
+                if not Path(spec).is_file():
+                    raise _fail(f"spec file not found: {spec}")
+                parsed = parse_spec_text(Path(spec).read_text(), spec)
+                spec_ref, source = spec, spec
+        elif project is not None:
+            from .project import scan_project
 
+            console.print(f"Looking for an API spec in {project} ...")
+            scan = scan_project(project)
+            for fw in scan.frameworks:
+                console.print(f"  Detected {fw.name} ({fw.evidence})")
+            if scan.spec_files:
+                found_path, parsed = scan.spec_files[0]
+                spec_ref = _nice_path(found_path)
+                source = f"found {spec_ref}"
+                for other, _ in scan.spec_files[1:4]:
+                    console.print(f"  Also found {_nice_path(other)} (pass it with --spec to use it)")
+            elif scan.exported:
+                text, parsed, how = scan.exported
+                spec_ref = _save_spec_copy(text, force)
+                source = f"{how}, saved to {spec_ref}"
+            else:
+                for problem in scan.export_errors:
+                    console.print(f"  Could not export: {escape(problem)}")
+                runtime = scan.runtime_frameworks
+                if runtime and (start or url):
+                    fw = runtime[0]
+                    url = url or f"http://localhost:{fw.port}"
+                else:
+                    if runtime:
+                        fw = runtime[0]
+                        console.print(
+                            f"\n{fw.name} only produces its spec while the app is running. Either start it "
+                            f"yourself and run:\n  autopilot init --url http://localhost:{fw.port}\n"
+                            f"or let Autopilot start it (and keep starting it for every run):\n"
+                            f"  autopilot init --project {project} --start {_quote(fw.start_hint or '')}"
+                        )
+                    else:
+                        console.print(
+                            "\nNo spec file found, and no framework that Autopilot can export a spec from. "
+                            "Pass one with --spec, or point --url at the running app."
+                        )
+                    raise typer.Exit(2)
+            if parsed is not None and scan.frameworks and scan.frameworks[0].port:
+                assumed_base = f"http://localhost:{scan.frameworks[0].port}"
+
+        if parsed is None:  # --url, possibly after --project fell through to the running app
+            assert url is not None
+            if start:
+                # The first start may include a full build (Maven, Gradle, npm), so allow 5 minutes.
+                runner = RunningApp(StartConfig(command=start, cwd=start_cwd, timeout_s=300), url, Path.cwd(),
+                                    Path(".autopilot") / "app.log", on_event=_say)
+                with runner:
+                    found = discover_spec(url)
+            else:
+                found = discover_spec(url)
+            parsed = found.spec
+            spec_ref = _save_spec_copy(found.text, force)
+            source = f"found at {found.url}, saved to {spec_ref}"
+    except AppStartError as exc:
+        raise _fail(exc) from None
+    except SpecError as exc:
+        raise _fail(exc) from None
+
+    # Where requests go: explicit flag, then the running app, then the spec, then a guess.
+    if base_url is None and url is not None:
+        base_url = url
     if base_url is None and parsed.servers:
         server = parsed.servers[0]
         if "{" not in server:  # skip templated servers like https://{env}.example.com
-            # A relative server ("/api/v1") is relative to where the spec was downloaded from.
-            candidate = urljoin(spec, server) if is_url(spec) else server
+            candidate = urljoin(spec, server) if spec and is_url(spec) else server
             if is_url(candidate):
                 base_url = candidate
+    guessed = False
+    if base_url is None and assumed_base:
+        base_url, guessed = assumed_base, True
     if base_url is None:
-        err.print(
-            "[red]Error:[/red] the spec doesn't name a full server URL. "
-            "Pass one, e.g. --base-url https://staging.example.com",
-            markup=True,
-        )
-        raise typer.Exit(2)
+        raise _fail("the spec doesn't name a full server URL. Pass one, e.g. --base-url https://staging.example.com")
+    base_url = base_url.rstrip("/")
 
     auth = parsed.auth
     header, prefix = (auth.header, auth.prefix) if auth else ("Authorization", "Bearer ")
     note = auth.description if auth else "none found; assuming a bearer token"
-    path.write_text(real_api_config(spec_ref, base_url.rstrip("/"), header, prefix, note))
+    text, env_vars = real_api_config(spec_ref, base_url, header, prefix, note, start, parsed.login)
+    if start and start_cwd != ".":
+        text = text.replace("    timeout_s:", f"    cwd: {start_cwd}\n    timeout_s:", 1)
+    path.write_text(text)
 
     kind = "Swagger 2.0" if parsed.is_swagger else f"OpenAPI {parsed.openapi}"
-    console.print(f"Wrote {path}: {parsed.title} ({kind}), {len(parsed.operations)} operations.")
-    console.print(f"  Target: {base_url.rstrip('/')}  (read-only to start)")
-    console.print(f"  Auth:   {note}")
+    console.print(f"\nWrote {path}: {escape(parsed.title)} ({kind}), {len(parsed.operations)} operations.")
+    console.print(f"  Spec:   {escape(source)}")
+    console.print(f"  Target: {base_url}  (read-only to start)" + ("  [yellow]assumed; edit if wrong[/yellow]" if guessed else ""))
+    if start:
+        console.print(f"  Start:  {escape(start)}")
+    console.print(f"  Auth:   {escape(note)}")
+    if parsed.login:
+        console.print(f"  Login:  {escape(parsed.login.description)}")
     for item in parsed.notes:
-        console.print(f"  [yellow]Note:[/yellow] {item}", markup=True)
+        console.print(f"  [yellow]Note:[/yellow] {escape(item)}")
     console.print(
-        "\nNext:\n"
-        "  1. Put GROQ_API_KEY, USER_A_TOKEN and USER_B_TOKEN in a .env file in this folder.\n"
+        f"\nNext:\n  1. Put {', '.join(env_vars)} in a .env file in this folder.\n"
         "  2. autopilot inspect                 # check what it understood\n"
         "  3. autopilot run --max-requests 50   # small first run"
     )
+
+
+def _quote(command: str) -> str:
+    import shlex
+
+    return shlex.quote(command)
 
 
 @app.command()
@@ -143,6 +278,12 @@ def inspect(config_path: ConfigOpt = Path(CONFIG_FILE)) -> None:
         )
     console.print(table)
     console.print(f"Identities: {', '.join(config.identity_names)}")
+    for name, ident in config.identities.items():
+        how = (f"logs in with {ident.login.method} {ident.login.path}" if ident.login
+               else f"token from ${ident.value_env}" if ident.value_env else "token in the config")
+        console.print(f"  {name}: {escape(how)}")
+    if config.target.start:
+        console.print(f"Starts the app with: {escape(config.target.start.command)}")
     if spec.auth:
         console.print(f"Auth in spec: {spec.auth.description}")
     for item in spec.notes:
@@ -194,27 +335,28 @@ def run(
     from .report import write_reports
     from .store import previous_fingerprints, save_run
 
-    config, spec = _load(config_path)
+    config = _load_config(config_path)
     if planner not in (None, "groq", "claude", "heuristic"):
         err.print("--planner must be groq, claude or heuristic")
         raise typer.Exit(2)
     if max_requests is not None:
         config.budgets.max_requests = max_requests
     chosen = _make_planner(config, planner)
+    from .app_runner import app_for
+    from .auth import log_in
 
-    async def go():
+    async def go(spec: ApiSpec):
         async with httpx.AsyncClient(follow_redirects=False) as client:
-            return await Autopilot(
-                config, spec, chosen, client,
-                # Literal output: "[201 200]" must not be parsed as Rich markup.
-                on_event=lambda msg: console.print(msg, markup=False, highlight=False),
-            ).run()
+            await log_in(config, client, on_event=_say)
+            # Literal output: "[201 200]" must not be parsed as Rich markup.
+            return await Autopilot(config, spec, chosen, client, on_event=_say).run()
 
     try:
-        result = asyncio.run(go())
+        with app_for(config, on_event=_say):
+            spec = _load_spec(config)  # after starting: the spec may be served by the app
+            result = asyncio.run(go(spec))
     except ConfigError as exc:
-        err.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(2) from None
+        raise _fail(exc) from None
 
     if not result.results and result.stats.stop_reason.startswith("planner error"):
         err.print("[red]Error:[/red] the planner failed before any scenario ran (see above).", markup=True)
@@ -251,21 +393,26 @@ def replay(
     from .replay import load_scenarios
     from .replay import replay as run_replay
 
-    config, spec = _load(config_path)
+    from .app_runner import app_for
+    from .auth import log_in
+
+    config = _load_config(config_path)
     frozen = load_scenarios(config.scenarios_dir)
     if not frozen:
         console.print(f"No saved scenarios in {config.scenarios_dir}. Run `autopilot run` first.")
         return
 
-    async def go():
+    async def go(spec: ApiSpec):
         async with httpx.AsyncClient(follow_redirects=False) as client:
+            await log_in(config, client, on_event=_say)
             return await run_replay(config, spec, client, frozen)
 
     try:
-        results = asyncio.run(go())
+        with app_for(config, on_event=_say):
+            spec = _load_spec(config)
+            results = asyncio.run(go(spec))
     except ConfigError as exc:
-        err.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(2) from None
+        raise _fail(exc) from None
 
     style = {"still_failing": "red", "fixed": "green", "could_not_run": "yellow"}
     for r in results:

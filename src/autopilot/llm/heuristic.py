@@ -15,7 +15,7 @@ import json
 from typing import Any
 
 from ..models import Finding, ScenarioResult
-from ..spec import Operation
+from ..spec import Operation, is_binary
 from .base import PlanningContext, Usage
 from .schemas import LLMExtract, LLMFollowUp, LLMHypothesis, LLMInvestigation, LLMParam, LLMPlan, LLMStep
 
@@ -218,7 +218,11 @@ class HeuristicPlanner:
                 breakers = constraint_breakers(op.request_schema) if isinstance(valid, dict) else []
                 for field, constraint, bad in breakers:
                     body = dict(valid)
-                    if bad is _MISSING:
+                    if bad is _MISSING and op.request_format == "multipart" and is_binary(
+                        (op.request_schema.get("properties") or {}).get(field)
+                    ):
+                        body[field] = None  # an absent file field would get a sample file attached
+                    elif bad is _MISSING:
                         body.pop(field, None)
                     else:
                         body[field] = bad
@@ -327,6 +331,8 @@ class HeuristicPlanner:
             "the documented schema, which can break clients that rely on it.",
             "builtin.undocumented_status": f"{op.method} {op.path} returns a status code the spec "
             "doesn't list.",
+            "builtin.error_leak": f"{op.method} {op.path} returns internal details (such as SQL, stack "
+            "traces or class names) in its response, which helps attackers map the system.",
         }.get(finding.oracle, finding.message)
         likely = "unknown" if finding.oracle in {"builtin.schema_conformance", "builtin.undocumented_status"} else "code"
         return LLMInvestigation(explanation=text, likely_wrong=likely)

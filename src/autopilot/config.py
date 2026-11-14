@@ -5,11 +5,11 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, ValidationError, model_validator
 
 CONFIG_FILE = "autopilot.yaml"
 _PROD_HOST = re.compile(r"(^|[.-])(prod|production|live)([.-]|$)", re.IGNORECASE)
@@ -19,6 +19,39 @@ class ConfigError(ValueError):
     pass
 
 
+_ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def expand_env(value: Any, *, what: str) -> Any:
+    """Replace ${VAR} in strings (recursively) with environment variables.
+
+    A missing variable is an error naming the variable, never its value.
+    """
+    if isinstance(value, str):
+        def repl(match: re.Match[str]) -> str:
+            name = match.group(1)
+            if name not in os.environ:
+                raise ConfigError(f"{what} uses ${{{name}}}, which is not set (add it to .env)")
+            return os.environ[name]
+
+        return _ENV_REF.sub(repl, value)
+    if isinstance(value, dict):
+        return {k: expand_env(v, what=what) for k, v in value.items()}
+    if isinstance(value, list):
+        return [expand_env(v, what=what) for v in value]
+    return value
+
+
+class LoginConfig(BaseModel):
+    """How to get a fresh token for an identity at the start of each run."""
+
+    method: str = "POST"
+    path: str  # relative to target.base_url, e.g. /auth/login (or a full URL)
+    format: Literal["json", "form"] = "json"  # form = application/x-www-form-urlencoded (OAuth2)
+    body: dict[str, Any] = Field(default_factory=dict)  # values may use ${ENV_VAR}
+    token_path: str = "body.access_token"  # where the token is in the response
+
+
 class Identity(BaseModel):
     """How to authenticate as one test user. The LLM only ever sees the name."""
 
@@ -26,14 +59,24 @@ class Identity(BaseModel):
     prefix: str = "Bearer "
     value_env: str | None = None  # read the secret from this environment variable
     value: str | None = None  # literal secret; only sensible for local demo APIs
+    login: LoginConfig | None = None  # or log in at the start of each run
+
+    _token: str | None = PrivateAttr(default=None)  # set by autopilot.auth.log_in
 
     @model_validator(mode="after")
     def _one_source(self) -> Identity:
-        if not self.value_env and not self.value:
-            raise ValueError("an identity needs either value_env or value")
+        if not self.value_env and not self.value and not self.login:
+            raise ValueError("an identity needs value_env, value or login")
         return self
 
+    def set_token(self, token: str) -> None:
+        self._token = token
+
     def header_value(self, name: str) -> str:
+        if self.login:
+            if not self._token:
+                raise ConfigError(f"Identity {name!r} hasn't logged in yet")
+            return f"{self.prefix}{self._token}"
         secret = self.value
         if self.value_env:
             secret = os.environ.get(self.value_env)
@@ -44,11 +87,23 @@ class Identity(BaseModel):
         return f"{self.prefix}{secret}"
 
 
+class StartConfig(BaseModel):
+    """How to start the app under test. Autopilot stops it again after the run."""
+
+    command: str  # e.g. "uvicorn app.main:app --port 8000"
+    cwd: str = "."  # relative to autopilot.yaml
+    shell: bool = False  # run through the shell (for &&, pipes, $VARS)
+    ready_url: str | None = None  # path or URL to poll; defaults to target.base_url
+    timeout_s: float = 60.0
+    env: dict[str, str] = Field(default_factory=dict)  # extra environment variables
+
+
 class Target(BaseModel):
     base_url: str
     allowed_hosts: list[str] = Field(default_factory=list)
     allow_writes: bool = False  # POST/PUT/PATCH
     allow_deletes: bool = False  # DELETE
+    start: StartConfig | None = None  # start the app before a run (optional)
 
     @property
     def host(self) -> str:
@@ -196,12 +251,65 @@ llm:
 """
 
 
-def real_api_config(spec: str, base_url: str, header: str, prefix: str, auth_note: str) -> str:
-    """autopilot.yaml for a real API. Starts read-only: turn writes on once you trust it."""
+def real_api_config(
+    spec: str,
+    base_url: str,
+    header: str,
+    prefix: str,
+    auth_note: str,
+    start_command: str | None = None,
+    login: Any = None,  # spec.LoginHint
+) -> tuple[str, list[str]]:
+    """autopilot.yaml for a real API, plus the environment variables it needs.
+
+    It starts read-only: turn writes on once you trust what it does.
+    """
+    import json
     from urllib.parse import urlparse
 
     host = urlparse(base_url).hostname or ""
-    return f"""\
+    env_vars = ["GROQ_API_KEY"]
+    start = ""
+    if start_command:
+        start = f"""
+  # Autopilot starts the app before a run (unless it's already running) and
+  # stops it afterwards. Its output goes to .autopilot/app.log.
+  start:
+    command: {json.dumps(start_command)}
+    timeout_s: 120               # Java/Node apps can take a while to start
+"""
+
+    def identity(name: str) -> str:
+        upper = name.upper()
+        if login is not None:
+            env_vars.extend([f"{upper}_USERNAME", f"{upper}_PASSWORD"])
+            return f"""  {name}:
+    header: {header}
+    prefix: "{prefix}"
+    login:                   # fresh token at the start of every run
+      method: {login.method}
+      path: {login.path}
+      format: {login.format}
+      body:
+        {login.username_field}: "${{{upper}_USERNAME}}"
+        {login.password_field}: "${{{upper}_PASSWORD}}"
+      token_path: {login.token_path}
+"""
+        env_vars.append(f"{upper}_TOKEN")
+        return f"""  {name}:
+    header: {header}
+    prefix: "{prefix}"
+    value_env: {upper}_TOKEN
+"""
+
+    how = (
+        f"They log in with {login.description}; usernames and passwords come from\n"
+        "# environment variables (or a .env file next to this one)."
+        if login is not None
+        else "Tokens are read from environment variables (or a .env file next to this one)."
+    )
+    users = identity("user_a") + identity("user_b")
+    text = f"""\
 # API Autopilot configuration. Start read-only, review the first report, then
 # enable writes if this is a staging/test environment you're allowed to change.
 spec: {spec}
@@ -211,20 +319,12 @@ target:
   allowed_hosts: [{host}]   # requests to any other host are refused
   allow_writes: false        # POST/PUT/PATCH; only enable on staging/test data
   allow_deletes: false       # DELETE
-
+{start}
 # Two test users, so Autopilot can check that one can't reach the other's data.
 # Auth detected from the spec: {auth_note}.
-# Tokens are read from environment variables (or a .env file next to this one).
+# {how}
 identities:
-  user_a:
-    header: {header}
-    prefix: "{prefix}"
-    value_env: USER_A_TOKEN
-  user_b:
-    header: {header}
-    prefix: "{prefix}"
-    value_env: USER_B_TOKEN
-
+{users}
 budgets:
   max_requests: 100
   max_iterations: 2
@@ -239,3 +339,4 @@ llm:
   effort: medium
   api_key_env: GROQ_API_KEY
 """
+    return text, env_vars

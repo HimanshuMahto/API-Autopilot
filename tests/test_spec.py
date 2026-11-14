@@ -4,7 +4,7 @@ from autopilot.spec import SpecError, parse_spec
 
 
 def test_demo_spec_parses(spec):
-    assert len(spec.operations) == 8
+    assert len(spec.operations) == 9
     get_order = spec.get("getOrder")
     assert get_order.method == "GET"
     assert get_order.path_param_names == ["order_id"]  # path-level parameter inherited

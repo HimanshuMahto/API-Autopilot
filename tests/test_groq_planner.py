@@ -180,3 +180,21 @@ def test_dotenv_loads_keys_without_overriding_the_shell(tmp_path, monkeypatch):
     assert os.environ["AP_TEST_C"] == "from-shell"
     for k in ("AP_TEST_A", "AP_TEST_B"):
         monkeypatch.delenv(k)
+
+
+def test_too_large_follow_up_is_retried_with_fewer_results(ctx, config, spec):
+    """A low tokens-per-minute plan rejects a big follow-up; it retries smaller, once."""
+    from autopilot.llm.schemas import LLMFollowUp
+    from .test_agent_replay import explore
+
+    results = explore(config, spec).results
+    request = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    too_big = groq.APIStatusError(
+        "Request too large: Limit 8000, Requested 8305",
+        response=httpx.Response(413, request=request), body=None,
+    )
+    p, calls = planner(too_big, '{"reasoning": "r", "hypotheses": []}')
+    assert run(p.follow_up(ctx, results)) == LLMFollowUp(reasoning="r", hypotheses=[])
+    first, second = (c["messages"][1]["content"] for c in calls.calls)
+    assert len(second) < len(first) - 2500
+    assert "omitted_scenarios" in second

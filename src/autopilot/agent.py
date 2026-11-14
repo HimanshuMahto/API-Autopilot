@@ -31,6 +31,7 @@ ORACLE_TITLES = {
     "spec.constraint": "Documented constraint not enforced",
     "builtin.schema_conformance": "Response doesn't match schema",
     "builtin.undocumented_status": "Undocumented status code",
+    "builtin.error_leak": "Internal details exposed",
 }
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 

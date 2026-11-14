@@ -19,6 +19,15 @@ class LLMBudgetExhausted(LLMError):
     pass
 
 
+class PromptTooLarge(LLMError):
+    """The provider refused a request as too large. Carries the sizes when known."""
+
+    def __init__(self, message: str, requested: int | None = None, limit: int | None = None):
+        super().__init__(message)
+        self.requested = requested
+        self.limit = limit
+
+
 @dataclass
 class Usage:
     calls: int = 0
@@ -47,12 +56,13 @@ class PlanningContext:
     max_hypotheses: int = 8
     notes: list[str] = field(default_factory=list)
 
-    def spec_summary(self) -> str:
+    def spec_summary(self, compact: bool = False) -> str:
         """Compact, token-frugal view of the spec.
 
         Full schemas are kept for request bodies and success responses; error
         responses are listed by status code only, since they mostly repeat one
-        generic error schema.
+        generic error schema. With compact=True (used for follow-ups, which also
+        carry the real response shapes) success schemas are dropped too.
         """
         ops = []
         for op in self.spec.operations.values():
@@ -74,12 +84,17 @@ class PlanningContext:
                 ]
             if op.request_schema is not None:
                 entry["request_body_schema"] = op.request_schema
-            entry["success_responses"] = {
-                code: schema for code, schema in op.responses.items() if code.startswith("2")
-            }
-            errors = [code for code in op.responses if not code.startswith("2")]
-            if errors:
-                entry["error_statuses"] = errors
+                if op.request_format != "json":
+                    entry["request_body_format"] = op.request_format
+            if compact:
+                entry["statuses"] = list(op.responses)
+            else:
+                entry["success_responses"] = {
+                    code: schema for code, schema in op.responses.items() if code.startswith("2")
+                }
+                errors = [code for code in op.responses if not code.startswith("2")]
+                if errors:
+                    entry["error_statuses"] = errors
             ops.append(entry)
         doc = {"title": self.spec.title, "description": self.spec.description, "operations": ops}
         return _compact(doc)

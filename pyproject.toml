@@ -23,7 +23,12 @@ demo = ["fastapi>=0.110", "uvicorn>=0.29"]
 autopilot = "autopilot.cli:app"
 
 [dependency-groups]
-dev = ["pytest>=8", "fastapi>=0.110", "uvicorn>=0.29"]
+dev = [
+    "pytest>=8",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "python-multipart>=0.0.33",
+]
 
 [build-system]
 requires = ["hatchling"]

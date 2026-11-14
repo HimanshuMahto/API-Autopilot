@@ -16,7 +16,7 @@ import groq
 from pydantic import BaseModel, ValidationError
 
 from ..spec import _resolve_refs
-from .base import LLMBudgetExhausted, LLMError, Usage
+from .base import LLMBudgetExhausted, LLMError, PromptTooLarge, Usage
 from .prompts import SYSTEM, PromptPlanner, T
 
 DEFAULT_MODEL = "openai/gpt-oss-120b"
@@ -152,9 +152,11 @@ class GroqPlanner(PromptPlanner):
             if exc.status_code == 413:
                 found = re.search(r"Limit (\d+), Requested (\d+)", exc.message or "")
                 sizes = f" ({found.group(2)} tokens requested, limit {found.group(1)})" if found else ""
-                raise LLMError(
+                raise PromptTooLarge(
                     f"This request is larger than your Groq plan's tokens-per-minute limit{sizes}. "
-                    "Try a model with a higher limit (llm.model) or a larger Groq tier."
+                    "Try a model with a higher limit (llm.model) or a larger Groq tier.",
+                    requested=int(found.group(2)) if found else None,
+                    limit=int(found.group(1)) if found else None,
                 ) from None
             raise LLMError(f"Groq API error {exc.status_code}: {_short(exc.message)}") from None
         except groq.APIConnectionError:
