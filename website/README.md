@@ -36,7 +36,10 @@ depends on the rest of the project.
 - `styles.css`: design. Colours are the variables at the top of the file.
 - `script.js`: mobile menu, the copy button and scroll fade-ins. The page
   works without it.
-- `favicon.svg`: browser tab icon.
+- `favicon.svg`: browser tab icon (the logo on a dark rounded square).
+- `logo.svg` / `logo-on-light.svg`: the logo for dark and light backgrounds.
+  The mark is a slash (an API path) with an orange dot (the point at its end);
+  the wordmark is `api/autopilot`, with `api/` in Geist Mono, dimmed.
 
 ## Colours
 

@@ -1,3 +1,10 @@
+<p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="website/logo.svg">
+    <img src="website/logo-on-light.svg" width="64" alt="API Autopilot logo: a slash with an orange dot">
+  </picture>
+</p>
+
 # API Autopilot
 
 **Website: [api-autopilot.vercel.app](https://api-autopilot.vercel.app)**
