@@ -121,16 +121,41 @@ class Budgets(BaseModel):
     request_timeout_s: float = 10.0
 
 
-DEFAULT_MODELS = {"groq": "openai/gpt-oss-120b", "claude": "claude-opus-5-5"}
-DEFAULT_KEY_ENV = {"groq": "GROQ_API_KEY", "claude": "ANTHROPIC_API_KEY"}
+DEFAULT_MODELS = {
+    "claude": "claude-opus-5-5",
+    "openai": "gpt-5.4-mini",
+    "gemini": "gemini-flash-latest",  # Google's alias for its current Flash model
+    "groq": "openai/gpt-oss-120b",
+}
+DEFAULT_KEY_ENV = {
+    "claude": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "groq": "GROQ_API_KEY",
+}
+# The order `provider: auto` checks for a key in. Claude comes last, so it is only
+# picked when its key is the only one present.
+AUTO_ORDER = ("openai", "gemini", "groq", "claude")
+PROVIDERS = ("auto", *DEFAULT_MODELS, "heuristic")
 
 
 class LLMConfig(BaseModel):
-    # "heuristic" runs the built-in rule-based planner and needs no API key.
-    provider: Literal["groq", "claude", "heuristic"] = "groq"
+    # "auto" uses whichever AI key is set (see AUTO_ORDER). "heuristic" runs the
+    # built-in rule-based planner and needs no key.
+    provider: Literal["auto", "claude", "openai", "gemini", "groq", "heuristic"] = "auto"
     model: str | None = None  # defaults per provider, see DEFAULT_MODELS
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     api_key_env: str | None = None  # environment variable holding the key
+    # For provider "openai": any OpenAI-compatible API (OpenRouter, a local model server, ...).
+    base_url: str | None = None
+
+    def resolve(self, choice: str | None = None) -> str | None:
+        """The provider to use: `choice` or the configured one, with "auto" resolved
+        to the first provider whose key is set. None if auto finds no key."""
+        provider = choice or self.provider
+        if provider != "auto":
+            return provider
+        return next((p for p in AUTO_ORDER if os.environ.get(DEFAULT_KEY_ENV[p])), None)
 
     def model_for(self, provider: str) -> str:
         # A model named in the config only applies to the configured provider, so
@@ -143,6 +168,9 @@ class LLMConfig(BaseModel):
         if self.api_key_env and provider == self.provider:
             return self.api_key_env
         return DEFAULT_KEY_ENV[provider]
+
+    def base_url_for(self, provider: str) -> str | None:
+        return self.base_url if provider == self.provider else None
 
 
 class Config(BaseModel):
@@ -244,10 +272,12 @@ budgets:
 confirmation_attempts: 2
 
 llm:
-  provider: groq             # or "heuristic" to run without an API key
-  model: openai/gpt-oss-120b
+  # Uses whichever AI key it finds: OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY
+  # or ANTHROPIC_API_KEY. To choose, set provider to openai, gemini, groq or
+  # claude, or "heuristic" for no AI (nothing leaves your machine). For any other
+  # OpenAI-compatible service, use provider openai with base_url and api_key_env.
+  provider: auto
   effort: medium
-  api_key_env: GROQ_API_KEY  # set it in your shell or in a .env file next to this one
 """
 
 
@@ -268,7 +298,7 @@ def real_api_config(
     from urllib.parse import urlparse
 
     host = urlparse(base_url).hostname or ""
-    env_vars = ["GROQ_API_KEY"]
+    env_vars: list[str] = []
     start = ""
     if start_command:
         start = f"""
@@ -334,9 +364,11 @@ budgets:
 confirmation_attempts: 2
 
 llm:
-  provider: groq             # or "heuristic": no AI, nothing leaves your machine
-  model: openai/gpt-oss-120b
+  # Uses whichever AI key it finds: OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY
+  # or ANTHROPIC_API_KEY. To choose, set provider to openai, gemini, groq or
+  # claude, or "heuristic" for no AI (nothing leaves your machine). For any other
+  # OpenAI-compatible service, use provider openai with base_url and api_key_env.
+  provider: auto
   effort: medium
-  api_key_env: GROQ_API_KEY
 """
     return text, env_vars

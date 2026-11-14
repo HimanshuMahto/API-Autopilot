@@ -221,7 +221,7 @@ def test_init_from_a_swagger_file(tmp_path, monkeypatch):
     assert config.identities["user_a"].header == "X-API-Key"
     assert config.identities["user_a"].prefix == ""
     assert config.identities["user_b"].value_env == "USER_B_TOKEN"
-    assert config.llm.provider == "groq"
+    assert config.llm.provider == "auto"
     assert load_spec(config.spec_source).title == "Pet API"
 
 

@@ -54,7 +54,7 @@ only means editing that block, plus the `theme-color` tag in `index.html`
 The site should read as a developer tool: Geist for text, Geist Mono for
 anything code-like, section labels written as code comments (`// how it works`),
 and real CLI output wherever possible. The hero terminal is shortened output
-from an actual demo run with the Groq planner; keep it truthful if the CLI's
+from an actual demo run with the AI planner; keep it truthful if the CLI's
 output changes.
 
 Layout references: entire.com, supabase.com and getdedica.com. From them:

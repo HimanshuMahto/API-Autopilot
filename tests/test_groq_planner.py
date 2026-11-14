@@ -146,12 +146,9 @@ def test_missing_key_is_a_clean_error(monkeypatch):
         GroqPlanner("openai/gpt-oss-120b", "medium", max_calls=1)
 
 
-def test_groq_is_the_default_and_never_loads_anthropic():
-    cfg = Config.model_validate({"spec": "x", "target": {"base_url": "http://localhost"}})
-    assert cfg.llm.provider == "groq"
-    assert cfg.llm.model_for("groq") == "openai/gpt-oss-120b"
+def test_loading_the_cli_never_loads_anthropic():
     code = (
-        "import sys, autopilot.cli, autopilot.agent, autopilot.llm.groq_planner;"
+        "import sys, autopilot.cli, autopilot.agent, autopilot.llm.groq_planner, autopilot.llm.openai_compat;"
         "assert not [m for m in sys.modules if m.startswith('anthropic')]"
     )
     proc = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)

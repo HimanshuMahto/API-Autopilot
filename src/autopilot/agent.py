@@ -1,6 +1,6 @@
 """Bounded explore loop: plan -> execute -> judge -> follow up -> confirm (PRD §7.3).
 
-The planner (Claude or heuristic) only proposes scenarios. Everything that
+The planner (an AI model or the rule-based heuristic) only proposes scenarios. Everything that
 touches the target goes through the executor and policy; every verdict comes
 from the deterministic oracles.
 """
@@ -144,7 +144,8 @@ class Autopilot:
         results: list[ScenarioResult] = []
 
         try:
-            self.emit(f"Planning with {self.planner.name} planner...")
+            kind = "rule-based planner (no AI)" if self.planner.name == "heuristic" else "AI planner"
+            self.emit(f"Planning with the {kind}...")
             plan = await self.planner.plan(self.ctx)
             self.emit(f"Plan: {plan.reasoning} ({len(plan.hypotheses)} hypotheses)")
             queue = self._scenarios(plan.hypotheses)

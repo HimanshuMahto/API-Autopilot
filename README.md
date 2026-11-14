@@ -25,8 +25,8 @@ scenarios you can replay in CI without any AI.
   Express and Flask apps.
 - **Starts your app and logs in for you.** It can start the app before each run
   and stop it afterwards, and log two test users in through your login endpoint.
-- **Tests what nobody wrote a test for.** An AI planner (Groq by default, Claude
-  optional, or no AI at all) proposes multi-step experiments, including file
+- **Tests what nobody wrote a test for.** An AI planner (bring your own key from
+  the provider you prefer, or use no AI at all) proposes multi-step experiments, including file
   uploads and one user reaching another user's data, and follows up on anything odd.
 - **Reports only what it can prove.** Seven fixed checks judge every response,
   and a bug is reported only if it repeats from a clean start (2 out of 2).
@@ -46,24 +46,21 @@ uv run autopilot run --planner heuristic  # terminal 2: explore without an API k
 uv run autopilot replay                   # re-check saved bugs; exits 1 while any remain
 ```
 
-To plan with an LLM, put your Groq key in a `.env` file next to `autopilot.yaml`
-(it is git-ignored) and drop `--planner heuristic`:
+To plan with AI, put your own API key in a `.env` file next to `autopilot.yaml`
+(it is git-ignored) and drop `--planner heuristic`. Autopilot uses whichever
+key it finds; see [Choosing an AI](#choosing-an-ai).
 
 ```bash
-echo 'GROQ_API_KEY=your-key-here' > .env
+echo 'OPENAI_API_KEY=your-key-here' > .env   # or GEMINI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY
 uv run autopilot run
 ```
-
-The default model is `openai/gpt-oss-120b` on Groq, using strict structured
-outputs. Claude is also supported (`--planner claude`) but never used unless you
-choose it.
 
 The report is written to `.autopilot/reports/run-<id>.html`.
 
 ## How it works
 
 ```
-spec ──► planner (Groq, Claude or heuristic) ──► proposed scenarios
+spec ──► planner (your AI, or heuristic) ──► proposed scenarios
                                               │
                              policy gateway ◄─┘  hosts, writes, deletes, budgets
                                    │
@@ -108,7 +105,7 @@ spec ──► planner (Groq, Claude or heuristic) ──► proposed scenarios
 |---|---|
 | `autopilot init [--url URL] [--start CMD] [--project DIR] [--spec FILE_OR_URL] [--base-url URL]` | write `autopilot.yaml`: for the demo, or for your API (see below) |
 | `autopilot inspect` | show operations, auth and what the policy allows |
-| `autopilot run [--planner groq\|claude\|heuristic] [--max-requests N]` | explore, confirm, save scenarios, write a report |
+| `autopilot run [--planner auto\|openai\|gemini\|groq\|claude\|heuristic] [--max-requests N]` | explore, confirm, save scenarios, write a report |
 | `autopilot replay [--include-flaky]` | re-run saved scenarios; exit 1 if a defect remains, 2 if one couldn't run |
 | `autopilot demo` | serve the demo shop API on 127.0.0.1:8765 |
 
@@ -183,7 +180,7 @@ config, and don't paste them into chats or tickets. `init` prints exactly
 which ones it needs, for example:
 
 ```bash
-GROQ_API_KEY=...
+OPENAI_API_KEY=...       # your AI key: or GEMINI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY
 USER_A_USERNAME=...      # when the identities log in
 USER_A_PASSWORD=...
 USER_B_USERNAME=...
@@ -217,13 +214,48 @@ re-check found bugs after a fix, with no AI involved.
   `format` (`json` or `form`), `body` (values can use `${ENV_VAR}`) and
   `token_path` (where the token is in the response, e.g. `body.access_token`).
 - `budgets`: request, follow-up round and LLM-call limits.
-- `llm`: `provider` (`groq`, `claude` or `heuristic`), `model`, `effort` and
-  `api_key_env`.
+- `llm`: `provider` (`auto`, `openai`, `gemini`, `groq`, `claude` or
+  `heuristic`), `model`, `effort`, `api_key_env` and `base_url`. See
+  [Choosing an AI](#choosing-an-ai).
 
 Commit `.autopilot/scenarios/` if you want the found bugs as regression tests;
 the database and reports are git-ignored.
 
-### What Groq sees
+### Choosing an AI
+
+Bring a key from the provider you already use. With `provider: auto` (the
+default for new configs), Autopilot uses the first key it finds and prints
+which one:
+
+| Provider | Key | Default model |
+|---|---|---|
+| `openai` | `OPENAI_API_KEY` | `gpt-5.4-mini` |
+| `gemini` | `GEMINI_API_KEY` | `gemini-flash-latest` |
+| `groq` | `GROQ_API_KEY` | `openai/gpt-oss-120b` |
+| `claude` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
+| `heuristic` | none | rule-based, no AI |
+
+Claude is checked last, so it's only picked automatically when its key is the
+only one set. To choose explicitly, set `llm.provider` (and optionally
+`llm.model`) in `autopilot.yaml`, or pass `--planner` for one run.
+
+Any other service with an OpenAI-compatible chat API works too, including
+OpenRouter and local model servers such as Ollama or LM Studio (no key needed
+for a local one):
+
+```yaml
+llm:
+  provider: openai
+  base_url: https://openrouter.ai/api/v1   # or http://localhost:11434/v1
+  model: your-model-name
+  api_key_env: OPENROUTER_API_KEY
+```
+
+Autopilot asks each provider for strict structured output. If a model doesn't
+support that, it falls back to describing the format in the prompt. Either way,
+every answer is validated before anything runs.
+
+### What the AI sees
 
 The spec, plus the *shape* and status code of each response. It never sees
 response values or your tokens. If the spec itself is confidential, use
@@ -242,8 +274,8 @@ source is in [`website/`](website/): plain HTML and CSS, no build step. See
 uv run pytest
 ```
 
-Tests run the real engine against the demo app in-process, and the Groq and
-Claude adapters against fake clients, so they need no network or API key.
+Tests run the real engine against the demo app in-process, and every AI
+adapter against a simulated provider, so they need no network or API key.
 
 ## Known MVP limits
 

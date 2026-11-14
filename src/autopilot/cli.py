@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from .config import CONFIG_FILE, DEMO_CONFIG, Config, ConfigError, load_config
+from .config import CONFIG_FILE, DEMO_CONFIG, PROVIDERS, Config, ConfigError, load_config
 from .spec import ApiSpec, SpecError, load_spec
 
 app = typer.Typer(
@@ -240,7 +240,8 @@ def init(
     for item in parsed.notes:
         console.print(f"  [yellow]Note:[/yellow] {escape(item)}")
     console.print(
-        f"\nNext:\n  1. Put {', '.join(env_vars)} in a .env file in this folder.\n"
+        f"\nNext:\n  1. Put {', '.join(env_vars)} and an AI key ({AI_KEYS_HINT})\n"
+        "     in a .env file in this folder. No AI key? Add `--planner heuristic` to runs.\n"
         "  2. autopilot inspect                 # check what it understood\n"
         "  3. autopilot run --max-requests 50   # small first run"
     )
@@ -292,28 +293,52 @@ def inspect(config_path: ConfigOpt = Path(CONFIG_FILE)) -> None:
         console.print("[yellow]Target looks like production: forced read-only.[/yellow]")
 
 
+AI_KEYS_HINT = "OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY or ANTHROPIC_API_KEY"
+
+
 def _make_planner(config: Config, choice: str | None):
     """Build the planner. Only the chosen provider's SDK is imported."""
+    import os
+
     from .llm.base import LLMError
 
-    provider = choice or config.llm.provider
+    provider = config.llm.resolve(choice)
+    if provider is None:
+        err.print(
+            "[red]No AI key found.[/red] Put one of "
+            f"{AI_KEYS_HINT} in a .env file next to autopilot.yaml (or in your shell), "
+            "or run without AI: `--planner heuristic`.",
+            markup=True,
+        )
+        raise typer.Exit(2)
     if provider == "heuristic":
         from .llm.heuristic import HeuristicPlanner
 
         return HeuristicPlanner()
     model = config.llm.model_for(provider)
     key_env = config.llm.key_env_for(provider)
+    if (choice or config.llm.provider) == "auto":
+        console.print(f"Using {provider} ({model}): found {key_env}.")
     try:
         if provider == "groq":
             from .llm.groq_planner import GroqPlanner
 
             return GroqPlanner(model, config.llm.effort, config.budgets.max_llm_calls, key_env)
+        if provider in ("openai", "gemini"):
+            from .llm.openai_compat import OpenAICompatPlanner
+
+            return OpenAICompatPlanner(
+                provider, model, config.llm.effort, config.budgets.max_llm_calls, key_env,
+                base_url=config.llm.base_url_for(provider),
+            )
         import anthropic
 
         from .llm.claude import ClaudePlanner
 
         try:
-            return ClaudePlanner(model, config.llm.effort, config.budgets.max_llm_calls)
+            key = os.environ.get(key_env)
+            client = anthropic.AsyncAnthropic(api_key=key) if key else None
+            return ClaudePlanner(model, config.llm.effort, config.budgets.max_llm_calls, client=client)
         except anthropic.AnthropicError as exc:
             raise LLMError(f"{exc}. Set {key_env} or use `--planner heuristic`.") from None
     except LLMError as exc:
@@ -325,7 +350,7 @@ def _make_planner(config: Config, choice: str | None):
 def run(
     config_path: ConfigOpt = Path(CONFIG_FILE),
     planner: Annotated[
-        str | None, typer.Option(help="groq, claude or heuristic. Defaults to llm.provider in the config.")
+        str | None, typer.Option(help="auto, openai, gemini, groq, claude or heuristic (no AI). Defaults to llm.provider in the config.")
     ] = None,
     max_requests: Annotated[int | None, typer.Option(help="Override budgets.max_requests.")] = None,
 ) -> None:
@@ -336,8 +361,8 @@ def run(
     from .store import previous_fingerprints, save_run
 
     config = _load_config(config_path)
-    if planner not in (None, "groq", "claude", "heuristic"):
-        err.print("--planner must be groq, claude or heuristic")
+    if planner is not None and planner not in PROVIDERS:
+        err.print(f"--planner must be one of: {', '.join(PROVIDERS)}")
         raise typer.Exit(2)
     if max_requests is not None:
         config.budgets.max_requests = max_requests

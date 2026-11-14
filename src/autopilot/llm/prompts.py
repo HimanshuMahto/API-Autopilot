@@ -1,7 +1,7 @@
 """Prompts shared by every LLM-backed planner.
 
 Each provider adapter only implements `_call(prompt, schema)`. Keeping the
-prompts here means Groq and Claude see exactly the same instructions and
+prompts here means every provider sees exactly the same instructions and
 context, which keeps their results comparable.
 """
 
