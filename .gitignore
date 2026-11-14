@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+dist/
+.pytest_cache/
+# API keys
+.env
+# Local run output from trying the demo (in your own projects you may want to
+# commit .autopilot/scenarios/ as regression tests)
+.autopilot/
+.DS_Store
+.idea/

@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Autopilot: find the bugs in your API before your customers do</title>
+  <meta name="description" content="API Autopilot is an AI tester for your API. It reads how your API is supposed to work, tries what nobody thought to test, and reports only the bugs it can prove.">
+  <meta name="theme-color" content="#181716">
+  <meta property="og:title" content="API Autopilot">
+  <meta property="og:description" content="An AI tester for your API. It tries what nobody thought to test and reports only the bugs it can prove.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+<!-- Icons: Phosphor Icons (MIT licence), https://phosphoricons.com -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-arrow-right" viewBox="0 0 256 256"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></symbol>
+  <symbol id="i-arrows-clockwise" viewBox="0 0 256 256"><path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z"/></symbol>
+  <symbol id="i-book-open-text" viewBox="0 0 256 256"><path d="M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64ZM160,88h40a8,8,0,0,1,0,16H160a8,8,0,0,1,0-16Zm48,40a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,128Zm0,32a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,160Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 256 256"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></symbol>
+  <symbol id="i-door-open" viewBox="0 0 256 256"><path d="M232,216H208V40a16,16,0,0,0-16-16H64A16,16,0,0,0,48,40V216H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16Zm-40,0H176V40h16ZM64,40h96V216H64Zm80,92a12,12,0,1,1-12-12A12,12,0,0,1,144,132Z"/></symbol>
+  <symbol id="i-eye-slash" viewBox="0 0 256 256"><path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/></symbol>
+  <symbol id="i-file-text" viewBox="0 0 256 256"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 256 256"><path d="M221.69,199.77,160,96.92V40h8a8,8,0,0,0,0-16H88a8,8,0,0,0,0,16h8V96.92L34.31,199.77A16,16,0,0,0,48,224H208a16,16,0,0,0,13.72-24.23ZM110.86,103.25A7.93,7.93,0,0,0,112,99.14V40h32V99.14a7.93,7.93,0,0,0,1.14,4.11L183.36,167c-12,2.37-29.07,1.37-51.75-10.11-15.91-8.05-31.05-12.32-45.22-12.81ZM48,208l28.54-47.58c14.25-1.74,30.31,1.85,47.82,10.72,19,9.61,35,12.88,48,12.88a69.89,69.89,0,0,0,19.55-2.7L208,208Z"/></symbol>
+  <symbol id="i-hand-palm" viewBox="0 0 256 256"><path d="M188,88a27.75,27.75,0,0,0-12,2.71V60a28,28,0,0,0-41.36-24.6A28,28,0,0,0,80,44v6.71A27.75,27.75,0,0,0,68,48,28,28,0,0,0,40,76v76a88,88,0,0,0,176,0V116A28,28,0,0,0,188,88Zm12,64a72,72,0,0,1-144,0V76a12,12,0,0,1,24,0v44a8,8,0,0,0,16,0V44a12,12,0,0,1,24,0v68a8,8,0,0,0,16,0V60a12,12,0,0,1,24,0v68.67A48.08,48.08,0,0,0,120,176a8,8,0,0,0,16,0,32,32,0,0,1,32-32,8,8,0,0,0,8-8V116a12,12,0,0,1,24,0Z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/></symbol>
+  <symbol id="i-lock-key" viewBox="0 0 256 256"><path d="M128,112a28,28,0,0,0-8,54.83V184a8,8,0,0,0,16,0V166.83A28,28,0,0,0,128,112Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,128,152Zm80-72H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></symbol>
+  <symbol id="i-magnifying-glass" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 256 256"><path d="M72,104a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,104Zm8,40h96a8,8,0,0,0,0-16H80a8,8,0,0,0,0,16ZM232,56V208a8,8,0,0,1-11.58,7.15L192,200.94l-28.42,14.21a8,8,0,0,1-7.16,0L128,200.94,99.58,215.15a8,8,0,0,1-7.16,0L64,200.94,35.58,215.15A8,8,0,0,1,24,208V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Zm-16,0H40V195.06l20.42-10.22a8,8,0,0,1,7.16,0L96,199.06l28.42-14.22a8,8,0,0,1,7.16,0L160,199.06l28.42-14.22a8,8,0,0,1,7.16,0L216,195.06Z"/></symbol>
+  <symbol id="i-seal-check" viewBox="0 0 256 256"><path d="M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></symbol>
+  <symbol id="i-shield-check" viewBox="0 0 256 256"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></symbol>
+  <symbol id="i-terminal-window" viewBox="0 0 256 256"><path d="M128,128a8,8,0,0,1-3,6.25l-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32A8,8,0,0,1,128,128Zm48,24H136a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm56-96V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 256 256"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></symbol>
+  <symbol id="i-warning-octagon" viewBox="0 0 256 256"><path d="M120,136V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0ZM232,91.55v72.9a15.86,15.86,0,0,1-4.69,11.31l-51.55,51.55A15.86,15.86,0,0,1,164.45,232H91.55a15.86,15.86,0,0,1-11.31-4.69L28.69,175.76A15.86,15.86,0,0,1,24,164.45V91.55a15.86,15.86,0,0,1,4.69-11.31L80.24,28.69A15.86,15.86,0,0,1,91.55,24h72.9a15.86,15.86,0,0,1,11.31,4.69l51.55,51.55A15.86,15.86,0,0,1,232,91.55Zm-16,0L164.45,40H91.55L40,91.55v72.9L91.55,216h72.9L216,164.45ZM128,160a12,12,0,1,0,12,12A12,12,0,0,0,128,160Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 256 256"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="top">
+  <div class="wrap nav-row">
+    <a class="brand" href="#top" aria-label="API Autopilot, home">
+      <svg class="brand-mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"/><circle class="dot" cx="10" cy="10" r="3.25"/></svg>
+      <span>API Autopilot</span>
+    </a>
+    <nav class="nav-links" id="nav-links" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#finds">What it finds</a>
+      <a href="#trust">Safety</a>
+      <a href="#compare">Compare</a>
+      <a href="#faq">Questions</a>
+    </nav>
+    <a class="btn btn-primary nav-cta" href="#start">Get started</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">
+      <svg class="i" aria-hidden="true"><use href="#i-list"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-top">
+        <div class="hero-copy">
+          <p class="eyebrow">Automated API testing</p>
+          <h1>Find the bugs in your API <em>before your customers do.</em></h1>
+          <div class="actions">
+            <a class="btn btn-primary" href="#start">Get started <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+            <a class="btn btn-ghost" href="#how">See how it works</a>
+          </div>
+        </div>
+        <div class="hero-side">
+          <p class="lede">API Autopilot is an AI tester for the part of your product that handles logins, orders and payments. It reads your OpenAPI spec, tries what nobody thought to test, and reports only the problems it can prove.</p>
+          <ul class="works-with" aria-label="What it works with">
+            <li><span>reads</span>OpenAPI 3 and Swagger 2.0</li>
+            <li><span>plans with</span>Groq, Claude, or no AI at all</li>
+            <li><span>runs</span>on your own computer, no account</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="hero-bento">
+      <!-- Product visual: real output from a run against the demo shop, shortened -->
+        <figure class="term term-hero" aria-label="Output of API Autopilot testing the demo shop">
+          <div class="term-bar">
+            <span><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span> autopilot run</span>
+            <span class="term-note">real output from a demo run, shortened</span>
+          </div>
+<pre><code><span class="ln" style="--i:0"><span class="p">$</span> <span class="b">uv run autopilot run</span></span><span class="ln" style="--i:1">Planning with groq planner...</span><span class="ln" style="--i:2">Plan: Focus on typical security and validation failures: cross-user data leakage, … <span class="d">(7 hypotheses)</span></span><span class="ln" style="--i:3">Round 1: running 7 scenario(s)</span><span class="ln" style="--i:4">  Bob can read Alice's order  <span class="d">[201 200]</span>  <span class="r">builtin.auth_differential</span></span><span class="ln" style="--i:5">  Quantity above maximum accepted  <span class="d">[201]</span>  <span class="r">spec.constraint</span></span><span class="ln" style="--i:6">  Cancelling an order twice does not return 409  <span class="d">[201 200 500]</span>  <span class="r">builtin.server_error</span></span><span class="ln" style="--i:7">  Anonymous user can access /me  <span class="d">[401]</span>  <span class="d">clean</span></span><span class="ln" style="--i:8">Follow-up: … verify whether these problems affect related operations (listOrders, cancelOrder by another user, …)</span><span class="ln" style="--i:9">Round 2: running 6 scenario(s)</span><span class="ln" style="--i:10">  Bob can cancel Alice's order  <span class="d">[201 404]</span>  <span class="d">clean</span></span><span class="ln" style="--i:11">  listOrders leaks other users' orders  <span class="d">[201 200]</span>  <span class="d">clean</span></span><span class="ln" style="--i:12"><span class="d">  …</span></span><span class="ln" style="--i:13">Confirming 5 candidate(s), 2 clean re-run(s) each</span><span class="ln" style="--i:14">  <span class="g">confirmed</span>       Cross-user access in getOrder <span class="d">(2/2)</span></span><span class="ln" style="--i:15">  <span class="g">confirmed</span>       Server error in cancelOrder <span class="d">(2/2)</span></span><span class="ln" style="--i:16"><span class="d">  …</span></span><span class="ln" style="--i:17"></span><span class="ln" style="--i:18"><span class="b">5 confirmed</span> finding(s) from 16 scenarios, 40 requests, 8 LLM calls, $0.0063.</span><span class="ln" style="--i:19">  <span class="r">high    </span> <span class="g">confirmed</span>      Cross-user access in getOrder</span><span class="ln" style="--i:20">  <span class="r">high    </span> <span class="g">confirmed</span>      Server error in cancelOrder</span><span class="ln" style="--i:21">  <span class="y">medium  </span> <span class="g">confirmed</span>      Documented constraint not enforced in createOrder (maximum:quantity)</span><span class="ln" style="--i:22">Saved 5 scenario(s) to .autopilot/scenarios for `autopilot replay`.</span></code></pre>
+        </figure>
+
+        <!-- A finding as it appears in the report -->
+        <article class="tile tile-finding" aria-label="Example finding from the report">
+          <div class="tile-tags">
+            <span class="tag tag-bad">high</span>
+            <span class="tag tag-good"><svg class="i" aria-hidden="true"><use href="#i-seal-check"/></svg>confirmed 2/2</span>
+          </div>
+          <h3>One customer can open another customer's order</h3>
+          <ol class="mini-steps">
+            <li><span class="who">alice</span><code>POST /orders</code><span class="code ok">201</span></li>
+            <li><span class="who">bob</span><code>GET /orders/{id}</code><span class="code bad">200</span></li>
+          </ol>
+          <p class="tile-note">Bob should have been told the order doesn't exist. He got all of it.</p>
+          <span class="kind">builtin.auth_differential</span>
+        </article>
+
+        <!-- Replay: the same bug re-checked without AI -->
+        <article class="tile tile-replay" aria-label="Re-checking saved bugs without AI">
+          <h3>Re-check without AI</h3>
+          <p>Every confirmed bug is saved as a test. Replay runs them with no AI, so CI fails until the fix is real.</p>
+          <code class="log"><i>$</i> uv run autopilot replay
+0 fixed, <s>9 still failing</s>, 0 could not run.
+<span class="exit">exit code 1</span></code>
+        </article>
+      </div>
+
+      <dl class="stats">
+        <div><dt>2/2</dt><dd>times a problem must repeat before it is reported</dd></div>
+        <div><dt>6</dt><dd>kinds of checks run on every response</dd></div>
+        <div><dt>~$0.01</dt><dd>AI cost of a full run on our demo shop</dd></div>
+        <div><dt>0</dt><dd>AI calls needed to re-check a bug after a fix</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- In plain words -->
+  <section class="plain" id="plain">
+    <div class="wrap">
+      <p class="eyebrow">In plain words</p>
+      <p class="statement">Your app has a shop front that people see and a back office that does the real work. <em>API Autopilot tests the back office.</em></p>
+      <div class="versus">
+        <figure class="vs-card reveal">
+          <figcaption><span class="vs-label">A typical test</span><span class="vs-sub">checks that things work when used properly</span></figcaption>
+          <ol class="vs-steps">
+            <li><span>Alice places an order</span><span class="code ok">201 Created</span></li>
+          </ol>
+          <p class="vs-result ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Test passed</p>
+        </figure>
+        <figure class="vs-card vs-us reveal">
+          <figcaption><span class="vs-label">API Autopilot</span><span class="vs-sub">also asks the questions nobody wrote down</span></figcaption>
+          <ol class="vs-steps">
+            <li><span>Alice places an order</span><span class="code ok">201 Created</span></li>
+            <li><span>Bob asks for Alice's order</span><span class="code bad">200 OK</span></li>
+          </ol>
+          <p class="vs-result bad"><svg class="i" aria-hidden="true"><use href="#i-warning-octagon"/></svg>Bug: Bob can see Alice's order</p>
+        </figure>
+      </div>
+      <p class="versus-caption">Same API. Only one of them asked the second question.</p>
+
+      <div class="cols3">
+        <div>
+          <h3>What is an API?</h3>
+          <p>The part of your product that other software talks to. Every login, order and payment passes through it, whether it comes from your website, your mobile app or a partner.</p>
+        </div>
+        <div>
+          <h3>What goes wrong?</h3>
+          <p>Most tests check that things work when used properly. The expensive bugs show up when someone does the unexpected, like asking for an order that is not theirs.</p>
+        </div>
+        <div>
+          <h3>What does Autopilot do?</h3>
+          <p>It plays the unexpected customer. It runs dozens of careful experiments, writes down exactly what broke, and shows the steps to see it for yourself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2>Four steps. <em>No test scripts to write.</em></h2>
+      </header>
+      <ol class="flow">
+        <li class="reveal">
+          <div class="flow-top"><span class="flow-n">01</span><svg class="i" aria-hidden="true"><use href="#i-book-open-text"/></svg></div>
+          <h3>Reads the manual</h3>
+          <p>You give it the description file of your API (OpenAPI or Swagger). It learns every action your API offers and the rules it promises to follow.</p>
+          <code class="log"><i>$</i> autopilot init --spec openapi.json</code>
+        </li>
+        <li class="reveal">
+          <div class="flow-top"><span class="flow-n">02</span><svg class="i" aria-hidden="true"><use href="#i-flask"/></svg></div>
+          <h3>Tries what nobody tested</h3>
+          <p>The AI plans experiments. What if a quantity is negative? What if one customer asks for another's order? Each runs as a real request against your test environment.</p>
+          <code class="log">Plan: … (7 hypotheses)</code>
+        </li>
+        <li class="reveal">
+          <div class="flow-top"><span class="flow-n">03</span><svg class="i" aria-hidden="true"><use href="#i-magnifying-glass"/></svg></div>
+          <h3>Follows the trail</h3>
+          <p>When an answer looks odd, it digs further, the way a curious tester would, instead of moving on to the next item on a list.</p>
+          <code class="log">Follow-up: … Round 2: running 6 scenario(s)</code>
+        </li>
+        <li class="reveal">
+          <div class="flow-top"><span class="flow-n">04</span><svg class="i" aria-hidden="true"><use href="#i-seal-check"/></svg></div>
+          <h3>Proves it, then saves it</h3>
+          <p>Each suspected bug is repeated from a clean start. Only the ones that repeat every time are reported, and each is saved as a test for after the fix.</p>
+          <code class="log"><b>confirmed</b> Server error in cancelOrder (2/2)</code>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- What it finds -->
+  <section class="section section-rule" id="finds">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">What it finds</p>
+        <h2>The problems that reach the news. <em>Checked on every single answer your API gives.</em></h2>
+      </header>
+      <ul class="finds-grid">
+        <li class="find find-wide reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-users"/></svg>
+          <div class="find-body">
+            <h3>Customers seeing each other's data</h3>
+            <p>Bob opens an order that belongs to Alice, and the API hands it over.</p>
+            <div class="pair">
+              <div><span class="who">alice</span><code>POST /orders</code><span class="code ok">201 Created</span></div>
+              <div><span class="who">bob</span><code>GET /orders/{id}</code><span class="code bad">200 OK</span><span class="should">should be 404</span></div>
+            </div>
+            <span class="kind">builtin.auth_differential</span>
+          </div>
+        </li>
+        <li class="find reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-door-open"/></svg>
+          <div class="find-body">
+            <h3>Doors left unlocked</h3>
+            <p>Something that should need a login answers anyone who asks.</p>
+            <code class="log">GET /orders <i>no token</i> → <s>200 OK</s>  <i>expected 401</i></code>
+            <span class="kind">builtin.auth_required</span>
+          </div>
+        </li>
+        <li class="find reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-hand-palm"/></svg>
+          <div class="find-body">
+            <h3>Rules that are not enforced</h3>
+            <p>The manual says a quantity must be between 1 and 100. The API accepts minus five.</p>
+            <code class="log">POST /orders {"quantity": -5} → <s>201 Created</s></code>
+            <span class="kind">spec.constraint</span>
+          </div>
+        </li>
+        <li class="find reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-warning-octagon"/></svg>
+          <div class="find-body">
+            <h3>Crashes</h3>
+            <p>Cancelling the same order twice ends in a server error instead of a polite refusal.</p>
+            <code class="log">POST /orders/{id}/cancel <i>twice</i> → <s>500</s>  <i>expected 409</i></code>
+            <span class="kind">builtin.server_error</span>
+          </div>
+        </li>
+        <li class="find reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-receipt"/></svg>
+          <div class="find-body">
+            <h3>Answers that break the contract</h3>
+            <p>A price promised as a number arrives as text, which can break the apps that read it.</p>
+            <code class="log">"price": <s>"19.99"</s>  <i>spec says number</i></code>
+            <span class="kind">builtin.schema_conformance</span>
+          </div>
+        </li>
+        <li class="find reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-file-text"/></svg>
+          <div class="find-body">
+            <h3>Surprises the manual never mentioned</h3>
+            <p>The API replies in a way its own documentation does not list.</p>
+            <code class="log">GET /me → <s>302</s>  <i>not listed in spec</i></code>
+            <span class="kind">builtin.undocumented_status</span>
+          </div>
+        </li>
+        <li class="find find-summary reveal">
+          <p class="summary-big">6 checks <em>on every response.</em></p>
+          <p>Each check is plain code, not an AI opinion, so the same response always gets the same verdict. That is what makes a saved bug safe to use as a test.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Trust -->
+  <section class="section section-rule" id="trust">
+    <div class="wrap">
+      <header class="section-head wide">
+        <p class="eyebrow">Safe by design</p>
+        <h2>The AI suggests. <em>Plain code decides.</em></h2>
+        <p class="section-sub">AI is good at imagining what might break and bad at being right every time. So Autopilot never lets the AI send a request or declare a bug on its own. Every request passes a safety gate first, and every verdict comes from fixed checks that give the same answer each time.</p>
+      </header>
+      <div class="grid4">
+        <article class="reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-shield-check"/></svg>
+          <h3>Looks before it touches</h3>
+          <p>It starts in read-only mode. It will not create, change or delete anything until you switch that on.</p>
+        </article>
+        <article class="reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-lock-key"/></svg>
+          <h3>Stays where you put it</h3>
+          <p>It only talks to the addresses you list, and it treats anything that looks like your live system as look-only.</p>
+        </article>
+        <article class="reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-eye-slash"/></svg>
+          <h3>Your data stays yours</h3>
+          <p>The AI sees the shape of an answer, never its contents. Passwords and access keys never leave your machine.</p>
+        </article>
+        <article class="reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-arrows-clockwise"/></svg>
+          <h3>Re-checks without AI</h3>
+          <p>Saved bugs run again with no AI at all, so the result is the same every time. Made for automatic checks before a release.</p>
+        </article>
+      </div>
+      <figure class="aside reveal">
+        <div class="term">
+          <div class="term-bar"><span><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span> from our own test runs</span></div>
+<pre><code><span class="d">Follow-up:</span> … (2) listOrders leaks orders that do not belong to the caller (auth_differential) …
+Round 2: running 6 scenario(s)
+  listOrders leaks other users' orders  <span class="d">[201 200]</span>  <span class="g">clean</span></code></pre>
+        </div>
+        <figcaption>The AI claimed a page was leaking orders. The fixed checks found it clean, so the claim never reached the report.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- Compare -->
+  <section class="plain compare" id="compare">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">How it compares</p>
+        <h2>A different job from the tools you know. <em>Not a replacement for them.</em></h2>
+      </header>
+      <div class="table-scroll" role="region" aria-label="Comparison table" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">Manual tools<small>Postman, curl</small></th>
+              <th scope="col">A general AI assistant<small>asked to test your API</small></th>
+              <th scope="col" class="us">API Autopilot<small>built for this one job</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Who decides what to test</th>
+              <td data-label="Manual tools">You write every request</td>
+              <td data-label="General AI assistant">You ask, it improvises</td>
+              <td class="us" data-label="API Autopilot">It plans the experiments</td>
+            </tr>
+            <tr>
+              <th scope="row">Follows up on a strange answer</th>
+              <td data-label="Manual tools">Only if you notice it</td>
+              <td data-label="General AI assistant">Sometimes</td>
+              <td class="us" data-label="API Autopilot">Yes, in follow-up rounds</td>
+            </tr>
+            <tr>
+              <th scope="row">Proves a bug before reporting it</th>
+              <td data-label="Manual tools">You check by hand</td>
+              <td data-label="General AI assistant">No. You get the AI's opinion</td>
+              <td class="us" data-label="API Autopilot">Yes. Repeated from a clean start</td>
+            </tr>
+            <tr>
+              <th scope="row">Safety limits</th>
+              <td data-label="Manual tools">Up to you</td>
+              <td data-label="General AI assistant">Up to you</td>
+              <td class="us" data-label="API Autopilot">Built in and enforced by code</td>
+            </tr>
+            <tr>
+              <th scope="row">Leaves tests you can run again</th>
+              <td data-label="Manual tools">Only the ones you write</td>
+              <td data-label="General AI assistant">No</td>
+              <td class="us" data-label="API Autopilot">Yes, one per bug</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="fair"><strong>Where the others are better.</strong> Postman is still the better place to explore an API by hand, write documentation and work as a team. Autopilot does one job: finding the bugs you did not think to look for.</p>
+    </div>
+  </section>
+
+  <!-- Get started -->
+  <section class="section" id="start">
+    <div class="wrap start-grid">
+      <header class="section-head">
+        <p class="eyebrow">Get started</p>
+        <h2>Try it on the demo shop <em>in a few minutes.</em></h2>
+        <p class="section-sub">The product ships with a small online shop that has four bugs planted in it. Run Autopilot against it and watch it find them. Then point it at your own API.</p>
+        <ul class="needs">
+          <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Python 3.11 or newer, and uv</li>
+          <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> A Groq API key, or run with no AI at all</li>
+          <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> A test copy of your API. Never your live system</li>
+        </ul>
+        <p class="handoff">Not a developer? Send this page to yours. Setup is a handful of commands, and the report is written for everyone.</p>
+      </header>
+
+      <div class="term" aria-label="Commands to get started">
+        <div class="term-bar">
+          <span><svg class="i" aria-hidden="true"><use href="#i-terminal-window"/></svg> Terminal</span>
+          <button class="copy" type="button" data-copy="term-code"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> <span>Copy</span></button>
+        </div>
+<pre id="term-code"><code><span class="c"># 1. Install (inside the project folder)</span>
+uv sync
+
+<span class="c"># 2. Start the demo shop, then test it (two terminals)</span>
+uv run autopilot demo
+uv run autopilot run
+
+<span class="c"># 3. Point it at your own API</span>
+autopilot init --spec https://staging.yourapp.com/openapi.json
+autopilot run --max-requests 50</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section section-rule" id="faq">
+    <div class="wrap split">
+      <header class="section-head sticky">
+        <p class="eyebrow">Questions</p>
+        <h2>Straight <em>answers.</em></h2>
+      </header>
+      <div class="faq">
+        <details open>
+          <summary>Do I need to be technical to use it?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>Today it runs from the command line, so a developer sets it up. The report it produces is written in plain language, with the steps to reproduce every problem, so anyone on the team can read it.</p>
+        </details>
+        <details>
+          <summary>Can I run it on my live product?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>Please don't. It sends deliberately wrong input and can create test data. Use a staging or local copy. As a backstop, it switches to look-only mode for any address that looks like a live system.</p>
+        </details>
+        <details>
+          <summary>Does the AI see my customers' data?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>No. The AI is given your API's description and the shape of each answer, such as "a list of orders, each with an id and a total". It is never given the contents, and it never sees passwords or access keys. You can also run with no AI, in which case nothing leaves your machine except the test requests to your own API.</p>
+        </details>
+        <details>
+          <summary>What does it cost?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>The product itself is free. If you use the AI planner, you pay your AI provider directly. A full run against our demo shop cost about one cent on Groq. Re-checking saved bugs uses no AI and costs nothing.</p>
+        </details>
+        <details>
+          <summary>Will it find every bug?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>No tool does. Autopilot checks the rules your API's description states, plus a set of rules every API should follow. A business rule that is written nowhere, like "a total must equal price times quantity", is not checked yet.</p>
+        </details>
+        <details>
+          <summary>What does my API need?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>A description file in OpenAPI 3 or Swagger 2.0 format, which most modern frameworks can produce for you, and two test accounts so it can check that one customer cannot reach another's data.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Closing -->
+  <section class="closing">
+    <div class="wrap">
+      <h2>Find out what your tests <em>are not telling you.</em></h2>
+      <div class="closing-actions">
+        <a class="btn btn-primary" href="#start">Get started <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        <code class="cmd"><span>$</span> uv run autopilot demo</code>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-row">
+    <a class="brand" href="#top">
+      <svg class="brand-mark" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"/><circle class="dot" cx="10" cy="10" r="3.25"/></svg>
+      <span>API Autopilot</span>
+    </a>
+    <nav aria-label="Footer">
+      <a href="#how">How it works</a>
+      <a href="#finds">What it finds</a>
+      <a href="#trust">Safety</a>
+      <a href="#start">Get started</a>
+    </nav>
+    <p class="foot-note">Postman is a trademark of its owner and is named for comparison only. Icons by Phosphor.</p>
+  </div>
+</footer>
+
+<script src="script.js" defer></script>
+</body>
+</html>

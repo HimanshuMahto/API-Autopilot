@@ -1,0 +1,30 @@
+# API Autopilot configuration. See docs/PRD.md for what each part does.
+spec: demo/openapi.yaml
+
+target:
+  base_url: http://127.0.0.1:8765
+  allowed_hosts: [127.0.0.1, localhost]   # requests to any other host are refused
+  allow_writes: true                      # POST/PUT/PATCH; keep false for shared envs
+  allow_deletes: false                    # DELETE
+
+# Test users. The agent only ever sees these names, never the tokens.
+# For a real target use value_env so tokens stay out of this file.
+identities:
+  alice:
+    value: alice-token       # demo only; use value_env: ALICE_TOKEN elsewhere
+  bob:
+    value: bob-token
+
+budgets:
+  max_requests: 200
+  max_iterations: 3
+  max_llm_calls: 12
+  request_timeout_s: 10
+
+confirmation_attempts: 2
+
+llm:
+  provider: groq             # or "heuristic" to run without an API key
+  model: openai/gpt-oss-120b
+  effort: medium
+  api_key_env: GROQ_API_KEY  # set it in your shell or in a .env file next to this one
