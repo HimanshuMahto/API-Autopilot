@@ -14,6 +14,9 @@ python3 -m http.server 8080    # then open http://localhost:8080
 
 ## Hosting
 
+Live at **https://api-autopilot.vercel.app**, deployed on Vercel from this
+folder (Root Directory: `website`, Framework: Other, no build command).
+
 Any static host works. Because the site lives in a subfolder, tell the host
 where it is:
 
@@ -59,13 +62,14 @@ identical cards; section headings as one sentence with a dimmed second half
 side-by-side "typical test vs Autopilot" comparison for non-technical readers.
 No fake logos, testimonials or numbers: every figure comes from a real run.
 
-## Before you publish
+## Keeping it accurate
 
-- The commands under "Get started" assume the reader already has the project.
-  Once the code is public, add a `git clone <your repo URL>` line above
-  `uv sync`, and a link to the repository in the nav or footer.
-- Fonts load from Google Fonts. If you would rather not call Google from your
-  visitors' browsers, download the two families and serve them yourself.
+- The commands under "Get started" and the init output in "Setup" are real; if
+  the CLI's commands or output change, update them here too.
+- The canonical address (`https://api-autopilot.vercel.app/`) is in the
+  `<head>` of `index.html`; change it there if the site moves.
+- Fonts load from Google Fonts. To avoid calling Google from visitors'
+  browsers, download the two families and serve them from this folder.
 
 ## Credits
 

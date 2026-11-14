@@ -9,6 +9,8 @@
   <meta property="og:title" content="API Autopilot">
   <meta property="og:description" content="An AI tester for your API. It tries what nobody thought to test and reports only the bugs it can prove.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://api-autopilot.vercel.app/">
+  <link rel="canonical" href="https://api-autopilot.vercel.app/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,6 +30,12 @@
   <symbol id="i-eye-slash" viewBox="0 0 256 256"><path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z"/></symbol>
   <symbol id="i-file-text" viewBox="0 0 256 256"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></symbol>
   <symbol id="i-flask" viewBox="0 0 256 256"><path d="M221.69,199.77,160,96.92V40h8a8,8,0,0,0,0-16H88a8,8,0,0,0,0,16h8V96.92L34.31,199.77A16,16,0,0,0,48,224H208a16,16,0,0,0,13.72-24.23ZM110.86,103.25A7.93,7.93,0,0,0,112,99.14V40h32V99.14a7.93,7.93,0,0,0,1.14,4.11L183.36,167c-12,2.37-29.07,1.37-51.75-10.11-15.91-8.05-31.05-12.32-45.22-12.81ZM48,208l28.54-47.58c14.25-1.74,30.31,1.85,47.82,10.72,19,9.61,35,12.88,48,12.88a69.89,69.89,0,0,0,19.55-2.7L208,208Z"/></symbol>
+  <symbol id="i-github-logo" viewBox="0 0 256 256"><path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"/></symbol>
+  <symbol id="i-database" viewBox="0 0 256 256"><path d="M128,24C74.17,24,32,48.6,32,80v96c0,31.4,42.17,56,96,56s96-24.6,96-56V80C224,48.6,181.83,24,128,24Zm80,104c0,9.62-7.88,19.43-21.61,26.92C170.93,163.35,150.19,168,128,168s-42.93-4.65-58.39-13.08C55.88,147.43,48,137.62,48,128V111.36c17.06,15,46.23,24.64,80,24.64s62.94-9.68,80-24.64ZM69.61,53.08C85.07,44.65,105.81,40,128,40s42.93,4.65,58.39,13.08C200.12,60.57,208,70.38,208,80s-7.88,19.43-21.61,26.92C170.93,115.35,150.19,120,128,120s-42.93-4.65-58.39-13.08C55.88,99.43,48,89.62,48,80S55.88,60.57,69.61,53.08ZM186.39,202.92C170.93,211.35,150.19,216,128,216s-42.93-4.65-58.39-13.08C55.88,195.43,48,185.62,48,176V159.36c17.06,15,46.23,24.64,80,24.64s62.94-9.68,80-24.64V176C208,185.62,200.12,195.43,186.39,202.92Z"/></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 256 256"><path d="M245,110.64A16,16,0,0,0,232,104H216V88a16,16,0,0,0-16-16H130.67L102.94,51.2a16.14,16.14,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V208h0a8,8,0,0,0,8,8H211.1a8,8,0,0,0,7.59-5.47l28.49-85.47A16.05,16.05,0,0,0,245,110.64ZM93.34,64,123.2,86.4A8,8,0,0,0,128,88h72v16H69.77a16,16,0,0,0-15.18,10.94L40,158.7V64Zm112,136H43.1l26.67-80H232Z"/></symbol>
+  <symbol id="i-globe-simple" viewBox="0 0 256 256"><path d="M128,24h0A104,104,0,1,0,232,128,104.12,104.12,0,0,0,128,24Zm87.62,96H175.79C174,83.49,159.94,57.67,148.41,42.4A88.19,88.19,0,0,1,215.63,120ZM96.23,136h63.54c-2.31,41.61-22.23,67.11-31.77,77C118.45,203.1,98.54,177.6,96.23,136Zm0-16C98.54,78.39,118.46,52.89,128,43c9.55,9.93,29.46,35.43,31.77,77Zm11.36-77.6C96.06,57.67,82,83.49,80.21,120H40.37A88.19,88.19,0,0,1,107.59,42.4ZM40.37,136H80.21c1.82,36.51,15.85,62.33,27.38,77.6A88.19,88.19,0,0,1,40.37,136Zm108,77.6c11.53-15.27,25.56-41.09,27.38-77.6h39.84A88.19,88.19,0,0,1,148.41,213.6Z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 256 256"><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 256 256"><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></symbol>
   <symbol id="i-hand-palm" viewBox="0 0 256 256"><path d="M188,88a27.75,27.75,0,0,0-12,2.71V60a28,28,0,0,0-41.36-24.6A28,28,0,0,0,80,44v6.71A27.75,27.75,0,0,0,68,48,28,28,0,0,0,40,76v76a88,88,0,0,0,176,0V116A28,28,0,0,0,188,88Zm12,64a72,72,0,0,1-144,0V76a12,12,0,0,1,24,0v44a8,8,0,0,0,16,0V44a12,12,0,0,1,24,0v68a8,8,0,0,0,16,0V60a12,12,0,0,1,24,0v68.67A48.08,48.08,0,0,0,120,176a8,8,0,0,0,16,0,32,32,0,0,1,32-32,8,8,0,0,0,8-8V116a12,12,0,0,1,24,0Z"/></symbol>
   <symbol id="i-list" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/></symbol>
   <symbol id="i-lock-key" viewBox="0 0 256 256"><path d="M128,112a28,28,0,0,0-8,54.83V184a8,8,0,0,0,16,0V166.83A28,28,0,0,0,128,112Zm0,40a12,12,0,1,1,12-12A12,12,0,0,1,128,152Zm80-72H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></symbol>
@@ -52,12 +60,16 @@
     </a>
     <nav class="nav-links" id="nav-links" aria-label="Main">
       <a href="#how">How it works</a>
+      <a href="#setup">Setup</a>
       <a href="#finds">What it finds</a>
       <a href="#trust">Safety</a>
       <a href="#compare">Compare</a>
       <a href="#faq">Questions</a>
     </nav>
-    <a class="btn btn-primary nav-cta" href="#start">Get started</a>
+    <div class="nav-end">
+      <a class="nav-gh" href="https://github.com/HimanshuMahto/API-Autopilot" aria-label="API Autopilot on GitHub" title="View on GitHub"><svg class="i" aria-hidden="true"><use href="#i-github-logo"/></svg><span>GitHub</span></a>
+      <a class="btn btn-primary nav-cta" href="#start">Get started</a>
+    </div>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Open menu">
       <svg class="i" aria-hidden="true"><use href="#i-list"/></svg>
     </button>
@@ -81,7 +93,7 @@
         <div class="hero-side">
           <p class="lede">API Autopilot is an AI tester for the part of your product that handles logins, orders and payments. It reads your OpenAPI spec, tries what nobody thought to test, and reports only the problems it can prove.</p>
           <ul class="works-with" aria-label="What it works with">
-            <li><span>reads</span>OpenAPI 3 and Swagger 2.0</li>
+            <li><span>reads</span>your project, your running app, or an OpenAPI / Swagger file</li>
             <li><span>plans with</span>Groq, Claude, or no AI at all</li>
             <li><span>runs</span>on your own computer, no account</li>
           </ul>
@@ -125,7 +137,7 @@
 
       <dl class="stats">
         <div><dt>2/2</dt><dd>times a problem must repeat before it is reported</dd></div>
-        <div><dt>6</dt><dd>kinds of checks run on every response</dd></div>
+        <div><dt>7</dt><dd>kinds of checks run on every response</dd></div>
         <div><dt>~$0.01</dt><dd>AI cost of a full run on our demo shop</dd></div>
         <div><dt>0</dt><dd>AI calls needed to re-check a bug after a fix</dd></div>
       </dl>
@@ -183,9 +195,9 @@
       <ol class="flow">
         <li class="reveal">
           <div class="flow-top"><span class="flow-n">01</span><svg class="i" aria-hidden="true"><use href="#i-book-open-text"/></svg></div>
-          <h3>Reads the manual</h3>
-          <p>You give it the description file of your API (OpenAPI or Swagger). It learns every action your API offers and the rules it promises to follow.</p>
-          <code class="log"><i>$</i> autopilot init --spec openapi.json</code>
+          <h3>Finds your API</h3>
+          <p>Point it at your project, your running app or a spec file. It finds the description of your API and learns every action it offers and the rules it promises to follow.</p>
+          <code class="log"><i>$</i> autopilot init --project .</code>
         </li>
         <li class="reveal">
           <div class="flow-top"><span class="flow-n">02</span><svg class="i" aria-hidden="true"><use href="#i-flask"/></svg></div>
@@ -206,6 +218,65 @@
           <code class="log"><b>confirmed</b> Server error in cancelOrder (2/2)</code>
         </li>
       </ol>
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section class="section section-rule" id="setup">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="eyebrow">Setup</p>
+        <h2>Point it at your API however you have it. <em>It finds the rest.</em></h2>
+      </header>
+      <div class="setup-grid">
+        <article class="tile reveal">
+          <svg class="i setup-i" aria-hidden="true"><use href="#i-folder-open"/></svg>
+          <h3>Your project folder</h3>
+          <p>Finds a spec file in the repo, or builds one from the code for FastAPI and Django REST. For Spring Boot, NestJS, ASP.NET, Express and Flask, it tells you how to let it start the app.</p>
+          <code class="log"><i>$</i> autopilot init --project ~/code/my-api</code>
+        </article>
+        <article class="tile reveal">
+          <svg class="i setup-i" aria-hidden="true"><use href="#i-globe-simple"/></svg>
+          <h3>Your running app</h3>
+          <p>Tries the addresses frameworks publish their spec on, such as /openapi.json, /v3/api-docs and /swagger.json, and uses the first that answers.</p>
+          <code class="log"><i>$</i> autopilot init --url http://localhost:8000</code>
+        </article>
+        <article class="tile reveal">
+          <svg class="i setup-i" aria-hidden="true"><use href="#i-file-text"/></svg>
+          <h3>A spec file</h3>
+          <p>OpenAPI 3 or Swagger 2.0, JSON or YAML, from a file or a link. A copy is saved so every run tests the same version.</p>
+          <code class="log"><i>$</i> autopilot init --spec openapi.yaml</code>
+        </article>
+        <article class="tile tile-wide reveal">
+          <div class="setup-extras">
+            <div>
+              <svg class="i setup-i" aria-hidden="true"><use href="#i-play"/></svg>
+              <h3>Starts your app for each run</h3>
+              <p>Give it the start command once. It waits until the app answers, tests it, and stops it afterwards. If the app is already running, it uses that.</p>
+            </div>
+            <div>
+              <svg class="i setup-i" aria-hidden="true"><use href="#i-key"/></svg>
+              <h3>Logs in on its own</h3>
+              <p>It spots your login endpoint in the spec and signs in two test users at the start of every run, so there are no tokens to copy or refresh.</p>
+            </div>
+          </div>
+          <figure class="term setup-term" aria-label="Real output of autopilot init on a Spring Boot project">
+            <div class="term-bar">
+              <span><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span> autopilot init</span>
+              <span class="term-note">real output on a Spring Boot project</span>
+            </div>
+<pre><code><span class="p">$</span> <span class="b">autopilot init --project . --url http://localhost:8081 --start "./mvnw spring-boot:run"</span>
+  Detected Spring Boot (springdoc)
+Starting the app: ./mvnw spring-boot:run
+App is up at http://localhost:8081.
+Stopping the app.
+
+Wrote autopilot.yaml: NimbusStore API (OpenAPI 3.1.0), <span class="g">16 operations</span>.
+  Spec:   found at http://localhost:8081/v3/api-docs
+  Login:  login (POST /auth/login)</code></pre>
+          </figure>
+        </article>
+      </div>
     </div>
   </section>
 
@@ -274,9 +345,18 @@
             <span class="kind">builtin.undocumented_status</span>
           </div>
         </li>
+        <li class="find reveal">
+          <svg class="i" aria-hidden="true"><use href="#i-database"/></svg>
+          <div class="find-body">
+            <h3>Internals leaked in errors</h3>
+            <p>An error message shows the database query, a stack trace or the server's file paths, which helps attackers map the system.</p>
+            <code class="log">POST /api/images → <s>500</s>  <i>"INSERT INTO rate_limits …"</i></code>
+            <span class="kind">builtin.error_leak</span>
+          </div>
+        </li>
         <li class="find find-summary reveal">
-          <p class="summary-big">6 checks <em>on every response.</em></p>
-          <p>Each check is plain code, not an AI opinion, so the same response always gets the same verdict. That is what makes a saved bug safe to use as a test.</p>
+          <p class="summary-big">7 checks <em>on every response.</em></p>
+          <p>Each check is plain code, not an AI opinion, so the same response always gets the same verdict. That makes a saved bug safe to use as a test.</p>
         </li>
       </ul>
     </div>
@@ -385,12 +465,13 @@ Round 2: running 6 scenario(s)
       <header class="section-head">
         <p class="eyebrow">Get started</p>
         <h2>Try it on the demo shop <em>in a few minutes.</em></h2>
-        <p class="section-sub">The product ships with a small online shop that has four bugs planted in it. Run Autopilot against it and watch it find them. Then point it at your own API.</p>
+        <p class="section-sub">The code comes with a small online shop that has four bugs planted in it. Run Autopilot against it and watch it find them. Then point it at your own API.</p>
         <ul class="needs">
           <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> Python 3.11 or newer, and uv</li>
           <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> A Groq API key, or run with no AI at all</li>
           <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg> A test copy of your API. Never your live system</li>
         </ul>
+        <a class="btn btn-ghost gh-btn" href="https://github.com/HimanshuMahto/API-Autopilot"><svg class="i" aria-hidden="true"><use href="#i-github-logo"/></svg> View the code on GitHub</a>
         <p class="handoff">Not a developer? Send this page to yours. Setup is a handful of commands, and the report is written for everyone.</p>
       </header>
 
@@ -399,15 +480,18 @@ Round 2: running 6 scenario(s)
           <span><svg class="i" aria-hidden="true"><use href="#i-terminal-window"/></svg> Terminal</span>
           <button class="copy" type="button" data-copy="term-code"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> <span>Copy</span></button>
         </div>
-<pre id="term-code"><code><span class="c"># 1. Install (inside the project folder)</span>
-uv sync
+<pre id="term-code"><code><span class="c"># 1. Get it</span>
+git clone https://github.com/HimanshuMahto/API-Autopilot.git
+cd API-Autopilot &amp;&amp; uv sync
 
 <span class="c"># 2. Start the demo shop, then test it (two terminals)</span>
 uv run autopilot demo
 uv run autopilot run
 
-<span class="c"># 3. Point it at your own API</span>
-autopilot init --spec https://staging.yourapp.com/openapi.json
+<span class="c"># 3. Your own API, from a folder of its own</span>
+alias autopilot="uv run --project $PWD autopilot"
+mkdir ../my-api-tests &amp;&amp; cd ../my-api-tests
+autopilot init --project ~/code/my-api
 autopilot run --max-requests 50</code></pre>
       </div>
     </div>
@@ -443,7 +527,11 @@ autopilot run --max-requests 50</code></pre>
         </details>
         <details>
           <summary>What does my API need?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
-          <p>A description file in OpenAPI 3 or Swagger 2.0 format, which most modern frameworks can produce for you, and two test accounts so it can check that one customer cannot reach another's data.</p>
+          <p>An OpenAPI 3 or Swagger 2.0 description, which most modern frameworks produce for you, and two test accounts so it can check that one customer cannot reach another's data. You don't have to find the description yourself: point Autopilot at your project or your running app and it looks for it.</p>
+        </details>
+        <details>
+          <summary>Which frameworks does it work with?<svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+          <p>Any HTTP API with an OpenAPI or Swagger description. It reads FastAPI and Django REST projects directly, and finds the description on a running Spring Boot, NestJS, ASP.NET, Express or Flask app. JSON requests and file uploads are both supported.</p>
         </details>
       </div>
     </div>
@@ -455,7 +543,7 @@ autopilot run --max-requests 50</code></pre>
       <h2>Find out what your tests <em>are not telling you.</em></h2>
       <div class="closing-actions">
         <a class="btn btn-primary" href="#start">Get started <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
-        <code class="cmd"><span>$</span> uv run autopilot demo</code>
+        <a class="btn btn-ghost" href="https://github.com/HimanshuMahto/API-Autopilot"><svg class="i" aria-hidden="true"><use href="#i-github-logo"/></svg> GitHub</a>
       </div>
     </div>
   </section>
@@ -472,6 +560,7 @@ autopilot run --max-requests 50</code></pre>
       <a href="#finds">What it finds</a>
       <a href="#trust">Safety</a>
       <a href="#start">Get started</a>
+      <a href="https://github.com/HimanshuMahto/API-Autopilot">GitHub</a>
     </nav>
     <p class="foot-note">Postman is a trademark of its owner and is named for comparison only. Icons by Phosphor.</p>
   </div>

@@ -1,16 +1,38 @@
 # API Autopilot
 
-An AI agent that tests your API like a curious senior QA engineer. It reads your
-OpenAPI spec, decides what might break, tries it safely, follows up on anything
-odd, and hands back **confirmed** bugs as scenarios you can replay in CI without
-any AI.
+**Website: [api-autopilot.vercel.app](https://api-autopilot.vercel.app)**
 
-> Status: weekend MVP (PRD §14.1). CLI + static HTML report. Full product
+An AI agent that tests your API like a curious senior QA engineer. It finds your
+API's spec in your project or running app, decides what might break, tries it
+safely, follows up on anything odd, and hands back **confirmed** bugs as
+scenarios you can replay in CI without any AI.
+
+> Status: early release. A command-line tool with an HTML report. Full product
 > requirements are in [docs/PRD.md](docs/PRD.md).
+
+## What it does
+
+- **Finds your API on its own.** Point it at your project folder, your running
+  app or a spec file (OpenAPI 3 or Swagger 2.0). It reads FastAPI and Django REST
+  projects directly and finds the spec on running Spring Boot, NestJS, ASP.NET,
+  Express and Flask apps.
+- **Starts your app and logs in for you.** It can start the app before each run
+  and stop it afterwards, and log two test users in through your login endpoint.
+- **Tests what nobody wrote a test for.** An AI planner (Groq by default, Claude
+  optional, or no AI at all) proposes multi-step experiments, including file
+  uploads and one user reaching another user's data, and follows up on anything odd.
+- **Reports only what it can prove.** Seven fixed checks judge every response,
+  and a bug is reported only if it repeats from a clean start (2 out of 2).
+- **Safe by default.** Read-only until you allow writes, only the hosts you list,
+  production-looking hosts locked to read-only, and request and AI budgets.
+- **Leaves you regression tests.** Every confirmed bug is saved and can be
+  re-checked with `autopilot replay`, with no AI, in CI.
 
 ## Quick start (demo)
 
 ```bash
+git clone https://github.com/HimanshuMahto/API-Autopilot.git
+cd API-Autopilot
 uv sync                                   # install
 uv run autopilot demo                     # terminal 1: demo shop API with 4 planted bugs
 uv run autopilot run --planner heuristic  # terminal 2: explore without an API key
@@ -49,6 +71,8 @@ spec ──► planner (Groq, Claude or heuristic) ──► proposed scenarios
           .autopilot/scenarios/*.yaml ──► `autopilot replay` (no LLM)
 ```
 
+- **Before a run** it starts your app if `target.start` is set (and stops it
+  afterwards), and logs your test users in if they have a `login` block.
 - **The LLM never touches the target.** It proposes scenarios; the policy
   gateway checks every step, the executor sends it, and fixed oracles decide
   whether it is a bug.
@@ -104,7 +128,7 @@ reports and saved bugs. Then point `init` at your API in whichever way fits:
 
 ```bash
 # Lets `autopilot` run from any folder
-alias autopilot='uv run --project ~/Documents/Github-Personal/api-autopilot autopilot'
+alias autopilot="uv run --project ~/API-Autopilot autopilot"   # where you cloned it
 mkdir ~/autopilot-myapi && cd ~/autopilot-myapi
 
 # a) Your app is running: Autopilot finds its spec
@@ -201,8 +225,9 @@ requests to your own API.
 
 ## Website
 
-The product page lives in [`website/`](website/): plain HTML and CSS, no build step.
-See [website/README.md](website/README.md) for previewing and hosting it.
+Live at **[api-autopilot.vercel.app](https://api-autopilot.vercel.app)**. The
+source is in [`website/`](website/): plain HTML and CSS, no build step. See
+[website/README.md](website/README.md) for previewing and hosting it.
 
 ## Development
 
@@ -226,3 +251,5 @@ Claude adapters against fake clients, so they need no network or API key.
 - Login happens once per run; tokens that expire mid-run are not refreshed.
   API keys must go in a header, not the query string.
 - No clean-up: data created on the target stays there.
+- Cross-user checks cover resources created during the run (Autopilot records
+  who created what), not data that already existed before it.
