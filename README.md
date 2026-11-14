@@ -260,3 +260,7 @@ Claude adapters against fake clients, so they need no network or API key.
 - No clean-up: data created on the target stays there.
 - Cross-user checks cover resources created during the run (Autopilot records
   who created what), not data that already existed before it.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
